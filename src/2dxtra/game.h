@@ -10,7 +10,7 @@ namespace bm2dx
 {
 	// enums
 	enum class play_style: int { SP = 0, DP = 1 };
-	enum class button: std::uint8_t { EFFECT = 18 };
+	enum class button: std::uint8_t { P1_START = 16, P2_START = 17, EFFECT = 18 };
 
 	// constants
 	auto constexpr MAX_RIVALS = 6;
