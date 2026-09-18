@@ -1,6 +1,7 @@
 #include <meta.h>
 #include <cmath>
 #include <algorithm>
+#include <array>
 #include <string>
 #include <fmt/format.h>
 #include "gui.h"
@@ -340,6 +341,42 @@ namespace iidxtra::gui::main_window
                         }
                         ImGui::PopStyleVar();
                         ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Hide the flashing blue bar above the keys");
+                    }
+
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        {
+                            ImGui::Text("Concentration Mode Movie");
+                            ImGui::SameLine(300);
+                            ImGui::BeginDisabled(!play_visuals::concentration_movie_available() ||
+                                                 bm2dx::play_session->in_gameplay);
+                            if (ImGui::Checkbox("##ConcentrationMovie", &play_visuals::concentration_movie))
+                                play_visuals::update_concentration_movie();
+                            ImGui::EndDisabled();
+                        }
+                        ImGui::PopStyleVar();
+                        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
+                                           "Show movie and title, like attract loop");
+                    }
+
+                    {
+                        ImGui::BeginDisabled(!play_visuals::concentration_movie_available() ||
+                                            !play_visuals::concentration_movie);
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        {
+                            ImGui::Text("Concentration Mode Movie Dimming");
+                            ImGui::SameLine(300);
+                            ImGui::SetNextItemWidth(100);
+                            static constexpr auto dim_labels = std::array { "0%%", "20%%", "40%%", "60%%", "80%%" };
+                            if (ImGui::SliderInt("##SubscreenDimming", &play_visuals::subscreen_dim_level,
+                                0, static_cast<int>(dim_labels.size()) - 1,
+                                dim_labels[play_visuals::subscreen_dim_level]))
+                                play_visuals::update_subscreen_dim();
+                            ImGui::EndDisabled();
+                        }
+                        ImGui::PopStyleVar();
+                        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
+                                           "Make the subscreen darker");
                     }
                 }
 
