@@ -92,6 +92,11 @@ namespace iidxtra::play_visuals
         if (clip != nullptr)
         {
             auto const active = show_concentration_movie();
+
+            // For some reason, DP shifts all the text rendering up; fix that to look the same as SP.
+            auto const native_title_y = bm2dx::state->play_style != 0 ? 945 : 1080;
+            bm2dx::play_session->subscreen_title_y = active && native_mode != demo_mode ? 1080 : native_title_y;
+
             auto const visible = native_mode == demo_mode || active;
             auto const brightness = active && native_mode != demo_mode ? subscreen_brightness.load() : 1.0f;
             auto const vtable = *static_cast<void***>(clip);

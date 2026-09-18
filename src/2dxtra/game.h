@@ -340,12 +340,15 @@ namespace bm2dx
 	{
 		std::uint8_t pad_0000[0x54]; //0x0000
 		bool in_gameplay; //0x0054
-		std::uint8_t pad_0055[0x3BF]; //0x0055
+        std::uint8_t pad_0055[0xBF]; //0x0055
+        std::int32_t subscreen_title_y; //0x0114
+        std::uint8_t pad_0118[0x2FC]; //0x0118
 		std::uint32_t current_score_pb; //0x0414
 		std::uint8_t pad_0418[0x28]; //0x0418
 		pacemaker_type pacemaker_type_id; //0x0440
 	}; static_assert(offsetof(play_session_t, pacemaker_type_id) == 0x440);
 	static_assert(offsetof(play_session_t, in_gameplay) == 0x54);
+	static_assert(offsetof(play_session_t, subscreen_title_y) == 0x114);
 	static_assert(offsetof(play_session_t, current_score_pb) == 0x414);
 
 	struct game_score_t
