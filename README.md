@@ -5,6 +5,9 @@
 
 A multi-hack for arcade beatmania IIDX
 
+This branch supports IIDX 33 Sparkle Shower `2026081900-010`.
+Other builds are not supported.
+
 - In-game interface with support for keyboard and controller input
 - Automatically blocks invalid scores from being sent to network
 - Cheat modifiers such as auto-play, regular speed & CN type override
