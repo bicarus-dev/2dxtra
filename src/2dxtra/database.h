@@ -27,8 +27,12 @@ namespace database
 
     struct db;
 
+    using settings_t = std::vector<std::pair<std::string, double>>;
+
     auto open(const char* path) -> db*;
     auto close(db*) -> void;
+    auto load_settings(db*) -> std::optional<settings_t>;
+    auto save_settings(db*, const settings_t&) -> bool;
     auto lookup(db*, int chart_set, int music_id, int difficulty, const std::string& orig_hash) -> std::optional<chart_row>;
     auto insert(db*, const chart_row& row, const std::string& orig_hash) -> void;
     auto pull(db*, int chart_set, int music_id, int difficulty, std::uint8_t* dst, std::size_t capacity) -> std::optional<pulled_chart>;

@@ -13,6 +13,7 @@
 #include "autoretry_window.h"
 #include "../game.h"
 #include "../chart_set.h"
+#include "../settings.h"
 #include "../features/autoplay.h"
 #include "../features/regular_speed.h"
 #include "../features/chart_speed.h"
@@ -458,6 +459,21 @@ namespace iidxtra::gui::main_window
 
                 if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen))
                 {
+                    static const char* settings_status = nullptr;
+                    if (ImGui::Button("Save settings"))
+                        settings_status = settings::save() ? "Settings saved" : "Could not save settings";
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled(bm2dx::play_session->in_gameplay);
+                    if (ImGui::Button("Reset to default"))
+                    {
+                        settings::reset();
+                        settings_status = "Defaults restored (not saved)";
+                    }
+                    ImGui::EndDisabled();
+                    if (settings_status)
+                        ImGui::TextUnformatted(settings_status);
+                    ImGui::Separator();
+
                 	{
                 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                 		{

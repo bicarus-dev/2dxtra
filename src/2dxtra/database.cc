@@ -23,6 +23,10 @@ namespace database
     namespace
     {
         constexpr char kCreate[] =
+            "CREATE TABLE IF NOT EXISTS settings ("
+            "  key TEXT PRIMARY KEY NOT NULL,"
+            "  value REAL NOT NULL"
+            ");"
             "CREATE TABLE IF NOT EXISTS chart_set ("
             "  id   INTEGER PRIMARY KEY,"
             "  name TEXT NOT NULL UNIQUE"
@@ -222,6 +226,69 @@ namespace database
         sqlite3_finalize(d->stmt_count);
         sqlite3_close(d->handle);
         delete d;
+    }
+
+    auto load_settings(db* d) -> std::optional<settings_t>
+    {
+        if (!d) return std::nullopt;
+
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(d->handle, "SELECT key, value FROM settings;",
+                               -1, &stmt, nullptr) != SQLITE_OK)
+            return std::nullopt;
+
+        settings_t values;
+        int result;
+        while ((result = sqlite3_step(stmt)) == SQLITE_ROW)
+        {
+            auto const type = sqlite3_column_type(stmt, 1);
+            if (type == SQLITE_INTEGER || type == SQLITE_FLOAT)
+                values.emplace_back(
+                    reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)),
+                    sqlite3_column_double(stmt, 1));
+        }
+        sqlite3_finalize(stmt);
+        if (result != SQLITE_DONE)
+            return std::nullopt;
+        return values;
+    }
+
+    auto save_settings(db* d, const settings_t& values) -> bool
+    {
+        if (!d) return false;
+
+        auto* mutex = sqlite3_db_mutex(d->handle);
+        sqlite3_mutex_enter(mutex);
+        if (sqlite3_exec(d->handle, "BEGIN IMMEDIATE;", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            sqlite3_mutex_leave(mutex);
+            return false;
+        }
+
+        sqlite3_stmt* stmt = nullptr;
+        auto success = sqlite3_prepare_v2(d->handle,
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)"
+            " ON CONFLICT(key) DO UPDATE SET value=excluded.value;",
+            -1, &stmt, nullptr) == SQLITE_OK;
+        if (success)
+        {
+            for (auto const& [key, value] : values)
+            {
+                success = sqlite3_bind_text(stmt, 1, key.c_str(), -1, SQLITE_TRANSIENT) == SQLITE_OK &&
+                          sqlite3_bind_double(stmt, 2, value) == SQLITE_OK &&
+                          sqlite3_step(stmt) == SQLITE_DONE;
+                sqlite3_reset(stmt);
+                if (!success)
+                    break;
+            }
+        }
+        sqlite3_finalize(stmt);
+        if (success)
+            success = sqlite3_exec(d->handle, "COMMIT;", nullptr, nullptr, nullptr) == SQLITE_OK;
+        if (!success)
+            sqlite3_exec(d->handle, "ROLLBACK;", nullptr, nullptr, nullptr);
+        sqlite3_mutex_leave(mutex);
+        return success;
     }
 
     auto lookup(db* d, int chart_set, int music_id, int difficulty,

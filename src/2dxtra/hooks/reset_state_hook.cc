@@ -5,20 +5,9 @@
 #include "../gui/gui.h"
 #include "../chart_set.h"
 #include "../score_set.h"
-#include "../features/autoplay.h"
-#include "../features/cn_override.h"
-#include "../features/regular_speed.h"
-#include "../features/chart_speed.h"
-#include "../features/scratch_swap.h"
-#include "../features/unrandomizer.h"
-#include "../features/keysound_switch.h"
-#include "../features/cn_transformer.h"
-#include "../features/play_visuals.h"
-#include "../features/timing_modifier.h"
-#include "../features/autoretry.h"
+#include "../settings.h"
 #include "reset_state_hook.h"
 #include "score_invalidator_hook.h"
-#include "../features/fast_slow_display.h"
 #include "../features/timing_histogram.h"
 
 namespace iidxtra::reset_state_hook
@@ -47,21 +36,7 @@ namespace iidxtra::reset_state_hook
         {
             log::debug("Configuration reset");
 
-			gui::play_lock_state = false;
-
-            autoplay::reset();
-            cn_override::reset();
-            regular_speed::reset();
-            chart_speed::reset();
-            scratch_swap::reset();
-            unrandomizer::reset();
-            keysound_switch::reset();
-            cn_transformer::reset();
-            play_visuals::reset();
-            timing_modifier::reset();
-            fast_slow_display::reset();
-            timing_histogram::reset();
-            autoretry::reset();
+            settings::reset(false);
         }
 
 		return reinterpret_cast<void* (*) (std::uint32_t)>(original_reset_state_fn)(a1);

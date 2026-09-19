@@ -17,3 +17,9 @@ Other builds are not supported.
 - Novelty modes to combine notes, re-arrange keysounds & swap scratches
 - Includes an updated version of [2dxAutoRetry](https://github.com/aixxe/2dxAutoRetry) with additional options
 - Ability to increase or decrease each judgement timing window
+
+Settings can be saved from **Options > Settings > Save settings**. They are stored
+in `2dxtra.sqlite` next to the DLL and loaded automatically at game start.
+**Reset to default** resets the active options without overwriting saved settings;
+press **Save settings** afterward to save the defaults. Event Mode resets also leave
+saved settings unchanged. Chart selection and session data are not saved.
