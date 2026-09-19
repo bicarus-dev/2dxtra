@@ -542,6 +542,207 @@ namespace
         }
     }
 
+    auto dp_placement_gap(const std::vector<placement_candidate>& notes,
+        const event& candidate, const generation_settings& settings) -> std::optional<int>
+    {
+        auto const next = std::lower_bound(notes.begin(), notes.end(), candidate.offset,
+            [] (const placement_candidate& note, const int offset) { return note.offset < offset; });
+        if (next != notes.end() &&
+            static_cast<std::int64_t>(next->offset) - candidate.offset < settings.threshold)
+            return std::nullopt;
+
+        auto free_from = std::int64_t { 0 };
+        auto required_gap = settings.threshold;
+        if (next != notes.begin())
+        {
+            auto const& previous = *std::prev(next);
+            free_from = static_cast<std::int64_t>(previous.offset) + previous.freeze_length;
+            if (previous.sample_value == static_cast<std::uint16_t>(candidate.value))
+                required_gap = SAME_SAMPLE_GAP;
+        }
+
+        auto const gap = static_cast<std::int64_t>(candidate.offset) - free_from;
+        if (gap < required_gap)
+            return std::nullopt;
+        return static_cast<int>(gap);
+    }
+
+    auto convert_dp_events(std::span<const event> chart, const bool kichiku) -> std::vector<event>
+    {
+        auto const settings = generation_settings { kichiku };
+        auto notes = std::array<std::array<std::vector<placement_candidate>, PLAYABLE_LANE_COUNT>, 2> {};
+        for (auto player = 0; player < 2; ++player)
+        {
+            for (auto const& candidate : build_candidates(chart, player))
+                if (candidate.lane_plus_one > 0 && candidate.lane_plus_one <= PLAYABLE_LANE_COUNT)
+                    notes[player][candidate.lane_plus_one - 1].push_back(candidate);
+        }
+
+        auto pool = std::vector<std::size_t> {};
+        auto first_bgm_seen = false;
+        for (auto index = std::size_t { 0 }; index < chart.size(); ++index)
+        {
+            if (chart[index].type == BGM)
+            {
+                if (first_bgm_seen)
+                    pool.push_back(index);
+                first_bgm_seen = true;
+            }
+        }
+
+        auto assigned = std::vector<int>(chart.size(), -1);
+        auto totals = std::array<int, 2> {};
+        auto next_hand = 0;
+        auto priority_toggle = 0;
+        auto cursor = std::size_t { 0 };
+
+        auto generate_group = [&](const std::int32_t end_offset)
+        {
+            auto const begin = cursor;
+            while (cursor < pool.size() && chart[pool[cursor]].offset < end_offset)
+                ++cursor;
+
+            auto samples = std::vector<weighted_sample> {};
+            for (auto index = begin; index < cursor; ++index)
+                add_sample_occurrence(samples, static_cast<std::uint16_t>(chart[pool[index]].value));
+
+            auto group_counts = std::array<int, 2> {};
+            auto last_lanes = std::array<int, 2> {};
+            auto const priority = lane_priority_for_toggle(priority_toggle);
+            for (auto sample = samples.rbegin(); sample != samples.rend(); ++sample)
+            {
+                auto scores = std::array<std::array<int, COLUMN_COUNT>, 2> {};
+                auto densities = std::array<std::array<std::uint8_t, COLUMN_COUNT>, 2> {};
+                for (auto index = begin; index < cursor; ++index)
+                {
+                    auto const& candidate = chart[pool[index]];
+                    if (static_cast<std::uint16_t>(candidate.value) != sample->value)
+                        continue;
+                    for (auto player = 0; player < 2; ++player)
+                        for (auto lane = 0; lane < PLAYABLE_LANE_COUNT; ++lane)
+                            if (dp_placement_gap(notes[player][lane], candidate, settings))
+                                scores[player][lane] = std::min(scores[player][lane] + 1, 254);
+                }
+
+                for (auto index = begin; index < cursor; ++index)
+                {
+                    auto const source_index = pool[index];
+                    auto const& candidate = chart[source_index];
+                    if (static_cast<std::uint16_t>(candidate.value) != sample->value)
+                        continue;
+
+                    auto lanes = std::array<int, 2> {};
+                    auto next_densities = densities;
+                    for (auto player = 0; player < 2; ++player)
+                    {
+                        auto accepts = scores[player];
+                        for (auto lane = 0; lane < PLAYABLE_LANE_COUNT; ++lane)
+                        {
+                            auto const gap = dp_placement_gap(notes[player][lane], candidate, settings);
+                            if (!gap || density_limiter(*gap, next_densities[player][lane], settings))
+                                accepts[lane] = 0;
+                        }
+                        favour_unused_lanes(accepts, last_lanes[player]);
+                        lanes[player] = pick_target_lane(priority, accepts);
+                    }
+
+                    auto player = next_hand;
+                    auto const left_load = std::pair { group_counts[0], totals[0] };
+                    auto const right_load = std::pair { group_counts[1], totals[1] };
+                    if (left_load != right_load)
+                        player = left_load < right_load ? 0 : 1;
+                    if (lanes[player] == 0)
+                        player = 1 - player;
+                    if (lanes[player] == 0)
+                        continue;
+
+                    auto const lane = lanes[player] - 1;
+                    auto& timeline = notes[player][lane];
+                    auto const position = std::lower_bound(timeline.begin(), timeline.end(), candidate.offset,
+                        [] (const placement_candidate& note, const int offset) { return note.offset < offset; });
+                    timeline.insert(position, placement_candidate {
+                        candidate.offset, sample->value, 0, static_cast<std::uint8_t>(lane + 1), 0xCC });
+                    assigned[source_index] = player * PLAYABLE_LANE_COUNT + lane;
+                    densities[player][lane] = next_densities[player][lane];
+                    last_lanes[player] = lane + 1;
+                    ++group_counts[player];
+                    ++totals[player];
+                    next_hand = 1 - player;
+                }
+            }
+            priority_toggle ^= 1;
+        };
+
+        auto bars = 0;
+        auto last_bar = std::int32_t { -1 };
+        for (auto const& record : chart)
+        {
+            if (record.type == MEASURE_BAR && record.offset != last_bar)
+            {
+                last_bar = record.offset;
+                if (++bars == settings.measure_interval)
+                {
+                    generate_group(record.offset);
+                    bars = 0;
+                }
+            }
+            if (record.type == END_OF_SONG)
+                generate_group(record.offset);
+        }
+
+        auto out = std::vector<event> {};
+        for (auto index = std::size_t { 0 }; index < chart.size(); ++index)
+        {
+            auto record = chart[index];
+            if ((record.type == SAMPLE_P1 || record.type == SAMPLE_P2) &&
+                record.parameter >= 0 && record.parameter < PLAYABLE_LANE_COUNT)
+                continue;
+            if (assigned[index] >= 0)
+            {
+                record.type = note_type_for_player(assigned[index] / PLAYABLE_LANE_COUNT);
+                record.parameter = static_cast<std::int8_t>(assigned[index] % PLAYABLE_LANE_COUNT);
+                record.value = 0;
+            }
+            if (record.type == NOTE_COUNT && record.parameter >= 0 && record.parameter < 2)
+                record.value = static_cast<std::int16_t>(record.value + totals[record.parameter]);
+            out.push_back(record);
+        }
+
+        for (auto player = 0; player < 2; ++player)
+        {
+            for (auto lane = 0; lane < PLAYABLE_LANE_COUNT; ++lane)
+            {
+                auto previous_sample = -1;
+                auto free_from = std::int64_t { 0 };
+                for (auto const& note : notes[player][lane])
+                {
+                    if (previous_sample != note.sample_value)
+                    {
+                        auto const offset = std::min<std::int64_t>(note.offset,
+                            free_from + (static_cast<std::int64_t>(note.offset) - free_from) / 2);
+                        out.push_back(event { static_cast<std::int32_t>(offset), sample_type_for_player(player),
+                            static_cast<std::int8_t>(lane), static_cast<std::int16_t>(note.sample_value) });
+                        previous_sample = note.sample_value;
+                    }
+                    free_from = static_cast<std::int64_t>(note.offset) + note.freeze_length;
+                }
+            }
+        }
+
+        std::stable_sort(out.begin(), out.end(), [](const event& left, const event& right)
+        {
+            if (left.offset != right.offset)
+                return left.offset < right.offset;
+            auto const order = [](const event& record)
+            {
+                return record.type == END_OF_SONG ? 2 :
+                    (record.type == NOTE_P1 || record.type == NOTE_P2 ? 1 : 0);
+            };
+            return order(left) < order(right);
+        });
+        return out;
+    }
+
     auto sort_by_offset(std::vector<event>& events) -> void
     {
         if (events.size() < 2)
@@ -708,5 +909,30 @@ auto urafumen::convert_in_place(std::uint8_t* buffer, const std::size_t capacity
         cursor += EVENT_SIZE;
     }
 
+    return written;
+}
+
+auto urafumen::convert_dp_in_place(std::uint8_t* buffer, const std::size_t capacity,
+    const bool kichiku) -> std::size_t
+{
+    if (buffer == nullptr || capacity < EVENT_SIZE)
+        return 0;
+
+    auto parsed = parse_events_until_eos({ buffer, capacity });
+    if (!parsed || !std::is_sorted(parsed->begin(), parsed->end(),
+        [] (const event& left, const event& right) { return left.offset < right.offset; }))
+        return 0;
+
+    auto const converted = convert_dp_events(*parsed, kichiku);
+    auto const written = converted.size() * EVENT_SIZE;
+    if (written > capacity)
+        return 0;
+
+    auto* cursor = buffer;
+    for (auto const& record : converted)
+    {
+        bm2dx::write_chart_event(cursor, record);
+        cursor += EVENT_SIZE;
+    }
     return written;
 }
