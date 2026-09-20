@@ -73,6 +73,15 @@ versions.push_back({
     .JUDGE_PRESS_RETURN       = base + 0x0821ce1, // return after general timing judgment call; continuation pattern [pattern]
     .JUDGE_RELEASE_RETURN     = base + 0x0820c8a, // return after CN release timing judgment call; continuation pattern [pattern]
 
+    // Native demo checks reused only for the concentration subscreen presentation.
+    .SUBSCREEN_MOVIE_INIT_RETURN = base + 0x08f8897,
+    .SUBSCREEN_MOVIE_DRAW_RETURN = base + 0x08f7eec,
+    .SUBSCREEN_TITLE_CALL_RETURN = base + 0x0905361,
+    .SUBSCREEN_TITLE_DRAW_RETURN = base + 0x0a4aff3,
+    .GET_GAME_MODE_FN         = base + 0x09493c0,
+    .CONCENTRATION_SHOW_FN    = base + 0x09c5da0,
+    .SUBSCREEN_UI_SHOW_FN     = base + 0x09c5ae0,
+
     // offsets: data
     .GAME_MODEL               = base + 0x1080d40, // the mutable copy of the ea3 model string
     .GAME_STATE               = base + 0xacd79a0, // state block; p1_active/p2_active at +0x10/+0x14 pin it down
@@ -89,4 +98,5 @@ versions.push_back({
     .PLAY_STATE               = base + 0xa7ed450, // per-play score/note counters and the pacemaker target
     .PLAY_SESSION             = base + 0xaba9a30, // gameplay session block (pacemaker type, personal best, in-game flag)
     .DEAD_STATE               = base + 0xaba95e0, // per-player alive flags from the failure handler's shared getter
+    .SUBSCREEN_MOVIE_CLIP     = base + 0xaba8b50, // pointer cleared by native movie cleanup
 });

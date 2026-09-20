@@ -81,6 +81,15 @@ struct offsets
     std::uint8_t* JUDGE_PRESS_RETURN;     // return address of general timing calculation
     std::uint8_t* JUDGE_RELEASE_RETURN;   // return address of CN release timing calculation
 
+    // Optional concentration movie support; return sites identify subscreen-only mode checks.
+    std::uint8_t* SUBSCREEN_MOVIE_INIT_RETURN = nullptr; // creates the demo movie layer
+    std::uint8_t* SUBSCREEN_MOVIE_DRAW_RETURN = nullptr; // updates its movie texture
+    std::uint8_t* SUBSCREEN_TITLE_CALL_RETURN = nullptr; // enables the title renderer
+    std::uint8_t* SUBSCREEN_TITLE_DRAW_RETURN = nullptr; // demo check inside the title renderer
+    std::uint8_t* GET_GAME_MODE_FN = nullptr;            // shared getter; override only the above callers
+    std::uint8_t* CONCENTRATION_SHOW_FN = nullptr;       // native concentration background transition
+    std::uint8_t* SUBSCREEN_UI_SHOW_FN = nullptr;        // hides/restores the normal subscreen controls
+
     // offsets: variables
     std::uint8_t* GAME_MODEL;             // the mutable ea3 model string ("***:*:*:*:**********")
     std::uint8_t* GAME_STATE;             // bm2dx::state_t
@@ -97,6 +106,7 @@ struct offsets
     std::uint8_t* PLAY_STATE;             // bm2dx::play_state_t
     std::uint8_t* PLAY_SESSION;           // bm2dx::play_session_t
     std::uint8_t* DEAD_STATE;             // bm2dx::dead_state_t
+    std::uint8_t* SUBSCREEN_MOVIE_CLIP = nullptr; // pointer slot for the per-song native movie layer
 };
 
 auto inline resolve_offsets(std::uint8_t* base) -> std::optional<offsets>
