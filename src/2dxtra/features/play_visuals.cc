@@ -102,6 +102,12 @@ namespace iidxtra::play_visuals
             auto const brightness = active && native_mode != demo_mode ? subscreen_brightness.load() : 1.0f;
             auto const vtable = *static_cast<void***>(clip);
             reinterpret_cast<void(*)(void*, bool)>(vtable[5])(clip, visible);
+
+            // Crop the top 64 pixels to hide the "Demonstration" banner.
+            auto const banner_height = active && native_mode != demo_mode ? 64 : 0;
+
+            std::int32_t const clip_rect[] { 0, 1080 + banner_height, 1280, 720 - banner_height };
+            reinterpret_cast<std::intptr_t(*)(void*, const std::int32_t*)>(vtable[15])(clip, clip_rect);
             using set_color_fn = std::intptr_t(*)(void*, float, float, float, float);
             reinterpret_cast<set_color_fn>(vtable[20])(clip, 1.0f, brightness, brightness, brightness);
         }
