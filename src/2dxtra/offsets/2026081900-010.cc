@@ -73,13 +73,14 @@ versions.push_back({
     .JUDGE_PRESS_RETURN       = base + 0x0821ce1, // return after general timing judgment call; continuation pattern [pattern]
     .JUDGE_RELEASE_RETURN     = base + 0x0820c8a, // return after CN release timing judgment call; continuation pattern [pattern]
 
-    .SUBSCREEN_MOVIE_INIT_RETURN = base + 0x08f8897,
-    .SUBSCREEN_MOVIE_DRAW_RETURN = base + 0x08f7eec,
-    .SUBSCREEN_TITLE_CALL_RETURN = base + 0x0905361,
-    .SUBSCREEN_TITLE_DRAW_RETURN = base + 0x0a4aff3,
-    .GET_GAME_MODE_FN         = base + 0x09493c0,
-    .CONCENTRATION_SHOW_FN    = base + 0x09c5da0,
-    .SUBSCREEN_UI_SHOW_FN     = base + 0x09c5ae0,
+    .SUB_MOVIE_INIT_RETURN    = base + 0x08f8897, // return from mode getter before the demo-only movie layer creation
+    .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
+    .SUB_TITLE_CALL_RETURN    = base + 0x0905361, // return from mode getter before calling the subscreen title renderer
+    .SUB_TITLE_DRAW_RETURN    = base + 0x0a4aff3, // return from mode getter at the title renderer's own demo check
+    .GET_GAME_MODE_FN         = base + 0x09493c0, // shared game-mode getter; only the above callers receive the demo override
+    .CONCENTRATION_SHOW_FN    = base + 0x09c5da0, // shows/hides the native concentration background
+    .PLAY_SCENE_DRAW_FN       = base + 0x0905150, // per-frame play UI draw; subscreen state is applied before this call
+    .SUBSCREEN_UI_SHOW_FN     = base + 0x09c5ae0, // hides/restores the normal subscreen controls and windows
 
     // offsets: data
     .GAME_MODEL               = base + 0x1080d40, // the mutable copy of the ea3 model string
@@ -97,5 +98,5 @@ versions.push_back({
     .PLAY_STATE               = base + 0xa7ed450, // per-play score/note counters and the pacemaker target
     .PLAY_SESSION             = base + 0xaba9a30, // gameplay session block (pacemaker type, personal best, in-game flag)
     .DEAD_STATE               = base + 0xaba95e0, // per-player alive flags from the failure handler's shared getter
-    .SUBSCREEN_MOVIE_CLIP     = base + 0xaba8b50,
+    .SUB_MOVIE_CLIP           = base + 0xaba8b50, // pointer cleared by native movie cleanup
 });
