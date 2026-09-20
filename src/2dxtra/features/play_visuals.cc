@@ -73,13 +73,14 @@ namespace iidxtra::play_visuals
     static auto concentration_show_hook_fn(void* context, bool visible) -> void
     {
         concentration_active = visible;
-        auto const hide_ui = visible && movie_enabled;
+        auto const enabled = movie_enabled.load();
+        auto const hide_ui = visible && enabled;
         if (hide_ui != subscreen_ui_hidden)
         {
             reinterpret_cast<void(*)(void*, bool)>(bm2dx::addr->SUBSCREEN_UI_SHOW_FN)(context, !hide_ui);
             subscreen_ui_hidden = hide_ui;
         }
-        original_concentration_show_fn(context, visible && !movie_enabled);
+        original_concentration_show_fn(context, visible && !enabled);
     }
 
     auto draw_concentration_movie() -> void
