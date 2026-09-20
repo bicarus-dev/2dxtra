@@ -19,6 +19,7 @@ namespace
     auto constexpr GAP_DECAY_THRESHOLD = 350;
     auto constexpr GAP_STEP = 10;
     auto constexpr SAME_SAMPLE_GAP = 80;
+    auto constexpr DP_SPACING_MULTIPLIER = 4;
 
     auto constexpr PLAYABLE_LANE_COUNT = 7;
     auto constexpr COLUMN_COUNT = 8;
@@ -29,11 +30,13 @@ namespace
         int threshold;
         int density_cap;
         int measure_interval;
+        int chord_cap;
 
         explicit generation_settings(const bool kichiku):
             threshold { kichiku ? 200: 250 },
             density_cap { kichiku ? 100: 50 },
-            measure_interval { kichiku ? 4: 8 } {}
+            measure_interval { kichiku ? 4: 8 },
+            chord_cap { kichiku ? 5: 3 } {}
     };
 
     struct placement_candidate
@@ -69,6 +72,24 @@ namespace
                 return candidates[scan].offset;
 
         return 0;
+    }
+
+    auto notes_per_hand_at_tick(const std::vector<placement_candidate>& candidates,
+        const int index) -> std::array<int, 2>
+    {
+        auto counts = std::array<int, 2> {};
+        auto const offset = candidates[index].offset;
+        auto begin = index;
+        while (begin > 0 && candidates[begin - 1].offset == offset)
+            --begin;
+        for (auto scan = begin; scan < static_cast<int>(candidates.size()) &&
+            candidates[scan].offset == offset; ++scan)
+        {
+            auto const lane_plus_one = candidates[scan].lane_plus_one;
+            if (lane_plus_one != 0)
+                ++counts[(lane_plus_one - 1) / PLAYABLE_LANE_COUNT];
+        }
+        return counts;
     }
 
     template<std::size_t KeyCount>
@@ -306,15 +327,23 @@ namespace
 
             auto const record_offset = rec.offset;
 
+            auto chord_counts = std::array<int, 2> {};
+            if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                chord_counts = notes_per_hand_at_tick(candidates, index);
+
             for (auto lane = 0; lane < static_cast<int>(KeyCount); ++lane)
             {
+                if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                    if (chord_counts[lane / PLAYABLE_LANE_COUNT] >= settings.chord_cap)
+                        continue;
+
                 auto const free_from = frame.lane_free_from(lane);
 
                 if (record_offset < free_from)
                     continue;
 
                 auto const required_gap =
-                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP: threshold;
+                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP * (KeyCount == PLAYABLE_LANE_COUNT ? 1 : DP_SPACING_MULTIPLIER): threshold;
                 auto const gap = record_offset - free_from;
 
                 if (gap < required_gap)
@@ -378,7 +407,8 @@ namespace
         const int candidate_count,
         const std::uint16_t entry_value, const int entry_occurrences,
         const int threshold, const int lane, const int lane_plus_one,
-        lane_frame<KeyCount>& frame, const int candidate_start = 0) -> int
+        lane_frame<KeyCount>& frame, const int candidate_start = 0,
+        const int chord_cap = PLAYABLE_LANE_COUNT) -> int
     {
         auto placed = 0;
         auto remaining = entry_occurrences;
@@ -399,10 +429,14 @@ namespace
             auto const record_offset = rec.offset;
             auto const free_from = frame.lane_free_from(lane);
 
-            if (record_offset >= free_from)
+            auto chord_full = false;
+            if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                chord_full = notes_per_hand_at_tick(candidates, index)[lane / PLAYABLE_LANE_COUNT] >= chord_cap;
+
+            if (!chord_full && record_offset >= free_from)
             {
                 auto const required_gap =
-                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP: threshold;
+                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP * (KeyCount == PLAYABLE_LANE_COUNT ? 1 : DP_SPACING_MULTIPLIER): threshold;
 
                 if ((record_offset - free_from) >= required_gap)
                 {
@@ -432,7 +466,9 @@ namespace
         const generation_settings& settings,
         std::vector<placement_candidate>& candidates) -> int
     {
-        auto const threshold = settings.threshold;
+        // DP's extra lanes allow more notes to be added - almost double if we use SP algorithm as-is.
+        // To compensate for this, use 4x normal and repeated-keysound spacing to avoid adding too many.
+        auto const threshold = settings.threshold * (KeyCount == PLAYABLE_LANE_COUNT ? 1 : DP_SPACING_MULTIPLIER);
         auto const lane_priority = lane_priority_for_toggle<KeyCount>(state.priority_toggle);
         auto const candidate_start = KeyCount == PLAYABLE_LANE_COUNT ? 0 : state.next_candidate;
         auto [working_set, scan] = collect_group_samples<KeyCount>(
@@ -472,7 +508,8 @@ namespace
                 frame = {};
 
             placed_total += place_sample_on_lane(candidates, count, entry_value,
-                entry_occurrences, threshold, lane_plus_one - 1, lane_plus_one, frame, candidate_start);
+                entry_occurrences, threshold, lane_plus_one - 1, lane_plus_one, frame, candidate_start,
+                settings.chord_cap);
         }
 
         state.priority_toggle ^= 1;
