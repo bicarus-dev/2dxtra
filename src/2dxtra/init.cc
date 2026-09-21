@@ -26,6 +26,7 @@
 #include "features/unrandomizer.h"
 #include "features/autoretry.h"
 #include "features/chart_speed.h"
+#include "features/scratch_flip.h"
 
 namespace iidxtra
 {
@@ -71,6 +72,7 @@ namespace iidxtra
 		unrandomizer::install_hook();
 		attract_randomizer_hook::install_hook();
 		chart_speed::install_hook();
+		scratch_flip::install_hook();
 
 		// Enable all hooks.
 		MH_EnableHook(MH_ALL_HOOKS);

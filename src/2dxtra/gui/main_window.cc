@@ -17,6 +17,7 @@
 #include "../features/chart_speed.h"
 #include "../features/keysound_switch.h"
 #include "../features/play_visuals.h"
+#include "../features/scratch_flip.h"
 #include "../features/fast_slow_display.h"
 #include "../features/timing_histogram.h"
 #include "../hooks/fast_slow_hook.h"
@@ -303,6 +304,22 @@ namespace iidxtra::gui::main_window
             {
                 if (ImGui::CollapsingHeader("Play", ImGuiTreeNodeFlags_DefaultOpen))
                 {
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        {
+                            ImGui::Text("Scratch Side Flip");
+                            ImGui::SameLine(285);
+                            if (ImGui::Checkbox("P1##ScratchSideFlip", &scratch_flip::enabled_p1))
+                                scratch_flip::update();
+
+                            ImGui::SameLine(325);
+                            if (ImGui::Checkbox("P2##ScratchSideFlip", &scratch_flip::enabled_p2))
+                                scratch_flip::update();
+                        }
+                        ImGui::PopStyleVar();
+                        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Move the scratch lane to the opposite side in SP");
+                    }
+
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                         {

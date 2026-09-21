@@ -81,6 +81,9 @@ struct offsets
     std::uint8_t* JUDGE_PRESS_RETURN;     // return address of general timing calculation
     std::uint8_t* JUDGE_RELEASE_RETURN;   // return address of CN release timing calculation
 
+    std::uint8_t* PLAY_LAYER_CREATE;      // creates play frame layers
+    std::uint8_t* PLAY_ELEMENT_FIND;      // resolves named frame children
+
     // offsets: variables
     std::uint8_t* GAME_MODEL;             // the mutable ea3 model string ("***:*:*:*:**********")
     std::uint8_t* GAME_STATE;             // bm2dx::state_t
@@ -97,6 +100,15 @@ struct offsets
     std::uint8_t* PLAY_STATE;             // bm2dx::play_state_t
     std::uint8_t* PLAY_SESSION;           // bm2dx::play_session_t
     std::uint8_t* DEAD_STATE;             // bm2dx::dead_state_t
+
+    // Optional SP layout support; profiles without these tables leave the feature unavailable.
+    std::uint8_t* PLAY_COVER_POS;        // SUDDEN/HIDDEN/LIFT positions
+    std::uint8_t* PLAY_NOTE_POS;         // notes and scratches positions
+    std::uint8_t* PLAY_BEAM_POS;         // key beam positions
+    std::uint8_t* PLAY_EFFECT_POS;       // bomb positions
+    std::uint8_t* PLAY_JUDGE_POS;        // judge and combo positions
+    std::uint8_t* PLAY_FS_POSITIONS;     // combined/keys/scratch tables, 128 bytes each
+    std::uint8_t* PLAY_RED_LINE_STATE;   // four X anchors followed by native initialization flags
 };
 
 auto inline resolve_offsets(std::uint8_t* base) -> std::optional<offsets>

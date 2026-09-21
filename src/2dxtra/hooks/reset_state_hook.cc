@@ -11,6 +11,7 @@
 #include "../features/regular_speed.h"
 #include "../features/chart_speed.h"
 #include "../features/scratch_swap.h"
+#include "../features/scratch_flip.h"
 #include "../features/unrandomizer.h"
 #include "../features/keysound_switch.h"
 #include "../features/cn_transformer.h"
@@ -56,6 +57,7 @@ namespace iidxtra::reset_state_hook
             regular_speed::reset();
             chart_speed::reset();
             scratch_swap::reset();
+            scratch_flip::reset();
             unrandomizer::reset();
             keysound_switch::reset();
             cn_transformer::reset();

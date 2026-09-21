@@ -73,6 +73,9 @@ versions.push_back({
     .JUDGE_PRESS_RETURN       = base + 0x0821ce1, // return after general timing judgment call; continuation pattern [pattern]
     .JUDGE_RELEASE_RETURN     = base + 0x0820c8a, // return after CN release timing judgment call; continuation pattern [pattern]
 
+    .PLAY_LAYER_CREATE        = base + 0x0344080, // native CLayer creation used for play frames, gauge animations and key support
+    .PLAY_ELEMENT_FIND        = base + 0x03437a0, // named-child lookup used repeatedly by frame updates and key/turntable renderers
+
     // offsets: data
     .GAME_MODEL               = base + 0x1080d40, // the mutable copy of the ea3 model string
     .GAME_STATE               = base + 0xacd79a0, // state block; p1_active/p2_active at +0x10/+0x14 pin it down
@@ -89,4 +92,12 @@ versions.push_back({
     .PLAY_STATE               = base + 0xa7ed450, // per-play score/note counters and the pacemaker target
     .PLAY_SESSION             = base + 0xaba9a30, // gameplay session block (pacemaker type, personal best, in-game flag)
     .DEAD_STATE               = base + 0xaba95e0, // per-player alive flags from the failure handler's shared getter
+
+    .PLAY_COVER_POS           = base + 0x107e7e8, // SUDDEN/HIDDEN/LIFT positions
+    .PLAY_NOTE_POS            = base + 0x1065550, // notes and scratches positions
+    .PLAY_BEAM_POS            = base + 0x107dce0, // key beam positions
+    .PLAY_EFFECT_POS          = base + 0x107d0c0, // bomb positions
+    .PLAY_JUDGE_POS           = base + 0x107e248, // judge and combo positions
+    .PLAY_FS_POSITIONS        = base + 0x107e3f0, // combined/keys/scratch positions: three consecutive 128-byte tables
+    .PLAY_RED_LINE_STATE      = base + 0xabaaec0, // four X anchors, then initialization flags at +0x10; height at +0x14 is untouched
 });
