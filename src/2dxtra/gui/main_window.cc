@@ -19,6 +19,7 @@
 #include "../features/chart_speed.h"
 #include "../features/keysound_switch.h"
 #include "../features/play_visuals.h"
+#include "../features/scratch_flip.h"
 #include "../features/fast_slow_display.h"
 #include "../features/timing_histogram.h"
 #include "../hooks/fast_slow_hook.h"
@@ -314,6 +315,22 @@ namespace iidxtra::gui::main_window
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                         {
+                            ImGui::Text("Scratch Side Flip");
+                            ImGui::SameLine(285);
+                            if (ImGui::Checkbox("P1##ScratchSideFlip", &scratch_flip::enabled_p1))
+                                scratch_flip::update();
+
+                            ImGui::SameLine(325);
+                            if (ImGui::Checkbox("P2##ScratchSideFlip", &scratch_flip::enabled_p2))
+                                scratch_flip::update();
+                        }
+                        ImGui::PopStyleVar();
+                        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Move the scratch lane to the opposite side in SP");
+                    }
+
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        {
                             ImGui::Text("Dark Mode");
                             ImGui::SameLine(285);
                             ImGui::BeginDisabled(bm2dx::play_session->in_gameplay);
@@ -357,7 +374,7 @@ namespace iidxtra::gui::main_window
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                         {
                             ImGui::Text("Concentration Mode Movie");
-                            ImGui::SameLine(300);
+                            ImGui::SameLine(285);
                             ImGui::BeginDisabled(!play_visuals::concentration_movie_available() ||
                                                  bm2dx::play_session->in_gameplay);
                             if (ImGui::Checkbox("##ConcentrationMovie", &play_visuals::concentration_movie))
@@ -375,7 +392,7 @@ namespace iidxtra::gui::main_window
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                         {
                             ImGui::Text("Concentration Mode Movie Dimming");
-                            ImGui::SameLine(300);
+                            ImGui::SameLine(285);
                             ImGui::SetNextItemWidth(100);
                             static constexpr auto dim_labels = std::array { "0%%", "20%%", "40%%", "60%%", "80%%" };
                             if (ImGui::SliderInt("##SubscreenDimming", &play_visuals::subscreen_dim_level,

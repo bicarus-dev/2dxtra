@@ -15,6 +15,7 @@
 #include "features/play_visuals.h"
 #include "features/regular_speed.h"
 #include "features/scratch_swap.h"
+#include "features/scratch_flip.h"
 #include "features/timing_histogram.h"
 #include "features/timing_modifier.h"
 #include "features/unrandomizer.h"
@@ -59,6 +60,10 @@ namespace iidxtra::settings
         apply("visuals.dark_mode", play_visuals::dark_mode);
         apply("visuals.no_measure_lines", play_visuals::no_measure_lines);
         apply("visuals.no_bpm_gradient", play_visuals::no_bpm_gradient);
+        apply("visuals.concentration_movie", play_visuals::concentration_movie);
+        apply("visuals.subscreen_dim_level", play_visuals::subscreen_dim_level, 0, 4);
+        apply("visuals.scratch_flip.p1", scratch_flip::enabled_p1);
+        apply("visuals.scratch_flip.p2", scratch_flip::enabled_p2);
         apply("fast_slow.milliseconds", fast_slow_display::options.show_milliseconds);
         apply("fast_slow.pgreat", fast_slow_display::options.show_pgreat);
         apply("timing_histogram.enabled", timing_histogram::enabled);
@@ -181,6 +186,9 @@ namespace iidxtra::settings
         play_visuals::update_dark_mode();
         play_visuals::update_no_measure_lines();
         play_visuals::update_no_bpm_gradient();
+        play_visuals::update_concentration_movie();
+        play_visuals::update_subscreen_dim();
+        scratch_flip::update();
         fast_slow_display::update();
         timing_histogram::update();
     }

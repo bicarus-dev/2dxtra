@@ -28,6 +28,7 @@
 #include "features/autoretry.h"
 #include "features/chart_speed.h"
 #include "features/play_visuals.h"
+#include "features/scratch_flip.h"
 
 namespace iidxtra
 {
@@ -74,6 +75,7 @@ namespace iidxtra
 		attract_randomizer_hook::install_hook();
 		chart_speed::install_hook();
 		play_visuals::install_hook();
+		scratch_flip::install_hook();
 
 		settings::init(db);
 
