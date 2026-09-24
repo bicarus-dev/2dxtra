@@ -73,6 +73,9 @@ versions.push_back({
     .JUDGE_PRESS_RETURN       = base + 0x0821ce1, // return after general timing judgment call; continuation pattern [pattern]
     .JUDGE_RELEASE_RETURN     = base + 0x0820c8a, // return after CN release timing judgment call; continuation pattern [pattern]
 
+    .RANDOM_SEQUENCE_DRAW_FN  = base + 0x0904d70, // native Random Sequence renderer; identifies display-only ticket reads
+    .RANDOM_TICKET_DATA_FN    = base + 0x08855b0, // getter for RandomLane::CRandomLaneTicketGameData
+
     .SUB_MOVIE_INIT_RETURN    = base + 0x08f8897, // return from mode getter before the demo-only movie layer creation
     .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
     .SUB_TITLE_CALL_RETURN    = base + 0x0905361, // return from mode getter before calling the subscreen title renderer

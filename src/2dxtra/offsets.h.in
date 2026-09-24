@@ -81,6 +81,9 @@ struct offsets
     std::uint8_t* JUDGE_PRESS_RETURN;     // return address of general timing calculation
     std::uint8_t* JUDGE_RELEASE_RETURN;   // return address of CN release timing calculation
 
+    std::uint8_t* RANDOM_SEQUENCE_DRAW_FN = nullptr; // native Random Sequence renderer; identifies display-only ticket reads
+    std::uint8_t* RANDOM_TICKET_DATA_FN   = nullptr; // getter for RandomLane::CRandomLaneTicketGameData
+
     // Optional concentration movie support; return sites identify subscreen-only mode checks.
     std::uint8_t* SUB_MOVIE_INIT_RETURN = nullptr; // creates the demo movie layer
     std::uint8_t* SUB_MOVIE_DRAW_RETURN = nullptr; // updates its movie texture

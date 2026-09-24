@@ -1,5 +1,9 @@
 #include <algorithm>
+#include <cstddef>
 #include <MinHook.h>
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 #include "unrandomizer.h"
 #include "../log.h"
 #include "../hooks/score_invalidator_hook.h"
@@ -130,6 +134,79 @@ namespace iidxtra::unrandomizer
 			std::ranges::copy(translated_random, column_lut_p2.begin());
 	}
 
+	struct random_sequence_data
+	{
+		std::byte unused[0x58];
+		std::int32_t status[2];
+		std::int32_t sequence[2];
+	};
+	static_assert(offsetof(random_sequence_data, status) == 0x58);
+	static_assert(offsetof(random_sequence_data, sequence) == 0x60);
+
+	static auto original_random_ticket_data_fn = static_cast<random_sequence_data*(*)()>(nullptr);
+
+	static auto random_ticket_data_hook_fn() -> random_sequence_data*
+	{
+		// Call the original first.
+		auto* native = original_random_ticket_data_fn();
+		auto const show_sequence_p1 = show_random_info_p1 || enabled_p1;
+		auto const show_sequence_p2 = show_random_info_p2 || enabled_p2;
+
+		// Feature is disabled.
+		if (!show_sequence_p1 && !show_sequence_p2)
+			return native;
+		
+		// Random data cannot be retrieved.
+		if (native == nullptr ||
+			bm2dx::state == nullptr ||
+			bm2dx::random_data == nullptr)
+			return native;
+
+		// Check if the caller is the Random Sequence renderer.
+#ifdef _MSC_VER
+		auto const caller = _ReturnAddress();
+#else
+		auto const caller = __builtin_return_address(0);
+#endif
+		DWORD64 image_base = 0;
+		auto const function = RtlLookupFunctionEntry(reinterpret_cast<DWORD64>(caller), &image_base, nullptr);
+		if (function == nullptr || image_base + function->BeginAddress !=
+			reinterpret_cast<DWORD64>(bm2dx::addr->RANDOM_SEQUENCE_DRAW_FN))
+			return native;
+
+		// A pointer to the sequence is returned, so static storage is required.
+		static thread_local auto display = random_sequence_data {};
+		display = *native;
+
+		for (std::uint8_t player = 0; player < 2; ++player)
+		{
+			// Check if DP; if so, either option activates it.
+			auto const active =
+				bm2dx::state->play_style != 0 ||
+				(player == 0 ? show_sequence_p1 && bm2dx::state->p1_active :
+					show_sequence_p2 && bm2dx::state->p2_active);
+
+			if (!active)
+				continue;
+
+			// Get random data for this player / side.
+			auto lanes = random_lut_t {};
+			if (game_random_to_string(player, lanes) == "1234567")
+			{
+				display.status[player] = 0;
+				continue;
+			}
+
+			// The native renderer expects a success flag and a seven-digit number.
+			display.status[player] = 1;
+			display.sequence[player] = 0;
+			for (auto const column: lanes)
+				display.sequence[player] = display.sequence[player] * 10 + column + 1;
+		}
+
+		return &display;
+	}
+
 	void install_hook()
 	{
 		MH_CreateHook(bm2dx::addr->APPLY_RANDOM_FN, (void*) +[] (void* a1) -> char
@@ -146,5 +223,11 @@ namespace iidxtra::unrandomizer
 
 			return result;
 		}, &original_game_apply_random_fn);
+
+		if (bm2dx::addr->RANDOM_SEQUENCE_DRAW_FN != nullptr &&
+			bm2dx::addr->RANDOM_TICKET_DATA_FN != nullptr)
+			MH_CreateHook(bm2dx::addr->RANDOM_TICKET_DATA_FN,
+				reinterpret_cast<LPVOID>(random_ticket_data_hook_fn),
+				reinterpret_cast<LPVOID*>(&original_random_ticket_data_fn));
 	}
 }
