@@ -1,10 +1,12 @@
 #include "all_scratch.h"
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <vector>
 
 #include "game.h"
+#include "log.h"
 #include "urafumen.h"
 
 namespace all_scratch
@@ -17,6 +19,9 @@ namespace all_scratch
         constexpr std::int8_t SCRATCH_COLUMN = 7;
         constexpr std::size_t COLUMN_COUNT = 8;
         constexpr std::int32_t MIN_SCRATCH_GAP = 50;
+        constexpr std::int32_t DP_FRAME_RATE = 120;
+        constexpr std::int32_t DP_SCRATCH_GAP_FRAMES = 5;
+        constexpr std::int32_t DP_KEY_GAP_FRAMES = 16;
 
         constexpr std::int16_t NO_SAMPLE = -1;
         constexpr std::int32_t NO_INDEX = -1;
@@ -178,6 +183,150 @@ namespace all_scratch
         auto* cursor = buffer;
 
         for (auto const& record: converted)
+        {
+            bm2dx::write_chart_event(cursor, record);
+            cursor += urafumen::EVENT_SIZE;
+        }
+
+        return written;
+    }
+
+    auto convert_dp_in_place(std::uint8_t* buffer, const std::size_t capacity)
+        -> std::size_t
+    {
+        auto const fail = [](const char* reason) -> std::size_t
+        {
+            iidxtra::log::print("DP All-Scratch conversion failed: {}", reason);
+            return 0;
+        };
+
+        if (buffer == nullptr || capacity < urafumen::EVENT_SIZE)
+            return fail("invalid buffer");
+
+        auto const parsed = urafumen::parse_events_until_eos({ buffer, capacity });
+        if (!parsed)
+            return fail("missing end-of-song event");
+
+        if (!std::is_sorted(parsed->begin(), parsed->end(),
+            [](const event& left, const event& right) { return left.offset < right.offset; }))
+            return fail("events are not ordered by time");
+
+        auto source_samples = std::array<std::array<std::int16_t, COLUMN_COUNT>, 2> {};
+        auto output_samples = source_samples;
+        auto sample_set = std::array<std::array<bool, COLUMN_COUNT>, 2> {};
+        auto last_note = std::array<std::array<std::int32_t, COLUMN_COUNT>, 2> {};
+        auto counts = std::array<int, 2> {};
+        auto out = std::vector<event> {};
+        out.reserve(parsed->size() * 2);
+
+        for (auto record: *parsed)
+        {
+            if (record.type == SAMPLE_P1 || record.type == SAMPLE_P2)
+            {
+                if (record.parameter >= 0 && record.parameter < static_cast<int>(COLUMN_COUNT))
+                {
+                    auto const player = static_cast<int>(record.type) - 2;
+                    source_samples[player][record.parameter] = record.value;
+                    continue;
+                }
+            }
+
+            if (record.type != NOTE_P1 && record.type != NOTE_P2)
+            {
+                out.push_back(record);
+                continue;
+            }
+
+            // Strip the CN/HCN parameter encoding when selecting a lane.
+            auto const source_lane = record.parameter % 10;
+            if (record.parameter < 0 || source_lane >= static_cast<int>(COLUMN_COUNT) ||
+                record.offset < 0)
+                return fail("invalid note lane or time");
+
+            auto const player = static_cast<int>(record.type);
+            auto& previous = last_note[player];
+            auto const elapsed = [&](const int lane) -> std::int64_t
+            {
+                return static_cast<std::int64_t>(record.offset) - previous[lane];
+            };
+
+            auto lane = -1;
+
+            if (elapsed(SCRATCH_COLUMN) * DP_FRAME_RATE >= DP_SCRATCH_GAP_FRAMES * 1000)
+                lane = SCRATCH_COLUMN;
+            else
+            {
+                for (auto index = 0; index < SCRATCH_COLUMN; ++index)
+                {
+                    auto const key = player == 0 ? index: SCRATCH_COLUMN - 1 - index;
+                    if (elapsed(key) * DP_FRAME_RATE >= DP_KEY_GAP_FRAMES * 1000)
+                    {
+                        lane = key;
+                        break;
+                    }
+                }
+            }
+
+            if (lane == -1)
+            {
+                for (auto key = 0; key < static_cast<int>(COLUMN_COUNT); ++key)
+                {
+                    if (elapsed(key) > 0)
+                    {
+                        lane = key;
+                        break;
+                    }
+                }
+            }
+
+            if (lane == -1)
+                return fail("no free lane at note timestamp");
+
+            auto const sample = source_samples[player][source_lane];
+            if (!sample_set[player][lane] || output_samples[player][lane] != sample)
+            {
+                auto const midpoint = previous[lane] +
+                    static_cast<std::int32_t>((elapsed(lane) + 1) / 2);
+                out.push_back(event { midpoint,
+                    static_cast<bm2dx::chart_event_type>(player + 2),
+                    static_cast<std::int8_t>(lane), sample });
+                output_samples[player][lane] = sample;
+                sample_set[player][lane] = true;
+            }
+
+            previous[lane] = record.offset;
+            record.parameter = static_cast<std::int8_t>(lane);
+            record.value = 0;
+            out.push_back(record);
+            ++counts[player];
+        }
+
+        for (auto& record: out)
+        {
+            if (record.type == NOTE_COUNT && record.parameter >= 0 && record.parameter < 2)
+                record.value = static_cast<std::int16_t>(counts[record.parameter]);
+        }
+
+        std::stable_sort(out.begin(), out.end(), [](const event& left, const event& right)
+        {
+            if (left.offset != right.offset)
+                return left.offset < right.offset;
+
+            auto const order = [](const event& record) -> int
+            {
+                return record.type == END_OF_SONG ? 2:
+                    (record.type == NOTE_P1 || record.type == NOTE_P2 ? 1: 0);
+            };
+            return order(left) < order(right);
+        });
+
+        auto const written = out.size() * urafumen::EVENT_SIZE;
+        if (written > capacity)
+            return fail("converted chart exceeds buffer capacity");
+
+        auto* cursor = buffer;
+
+        for (auto const& record: out)
         {
             bm2dx::write_chart_event(cursor, record);
             cursor += urafumen::EVENT_SIZE;
