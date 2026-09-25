@@ -83,6 +83,11 @@ struct offsets
 
     std::uint8_t* RANDOM_SEQUENCE_DRAW_FN = nullptr; // native Random Sequence renderer; identifies display-only ticket reads
     std::uint8_t* RANDOM_TICKET_DATA_FN   = nullptr; // getter for RandomLane::CRandomLaneTicketGameData
+    std::uint8_t* SRAN_CANDIDATE_CHECK    = nullptr; // cmp ecx,eax: elapsed vs minimum gap; rdi=context, r15=side, r14=now, ebx=last end
+
+    std::uint8_t* RANDOM_OPTION_TEXT_FN    = nullptr; // formats live play options
+    std::uint8_t* RANDOM_RESULT_TEXT_FN    = nullptr; // formats current result options
+    std::uint8_t* RANDOM_PACEMAKER_TEXT_FN = nullptr; // formats current-score graph options
 
     // Optional concentration movie support; return sites identify subscreen-only mode checks.
     std::uint8_t* SUB_MOVIE_INIT_RETURN = nullptr; // creates the demo movie layer

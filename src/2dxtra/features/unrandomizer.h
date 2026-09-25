@@ -18,10 +18,14 @@ namespace iidxtra::unrandomizer
 	extern bool show_random_info_p1;
 	extern bool show_random_info_p2;
 
+	extern bool hran_enabled_p1;
+	extern bool hran_enabled_p2;
+
 	extern random_lut_t column_lut_p1;
 	extern random_lut_t column_lut_p2;
 
 	auto is_valid(std::uint8_t player) -> bool;
+	auto hran_available() -> bool;
 
     auto reset() -> void;
 	auto mutate(std::uint8_t player, std::vector<bm2dx::chart_event_t>& buffer) -> void;

@@ -75,6 +75,11 @@ versions.push_back({
 
     .RANDOM_SEQUENCE_DRAW_FN  = base + 0x0904d70, // native Random Sequence renderer; identifies display-only ticket reads
     .RANDOM_TICKET_DATA_FN    = base + 0x08855b0, // getter for RandomLane::CRandomLaneTicketGameData
+    .SRAN_CANDIDATE_CHECK     = base + 0x0822a86, // S-RAN rejection loop, before the signed gap comparison
+
+    .RANDOM_OPTION_TEXT_FN    = base + 0x0896dc0, // formats live play options
+    .RANDOM_RESULT_TEXT_FN    = base + 0x0896510, // formats current result options
+    .RANDOM_PACEMAKER_TEXT_FN = base + 0x0a46500, // formats current-score graph options
 
     .SUB_MOVIE_INIT_RETURN    = base + 0x08f8897, // return from mode getter before the demo-only movie layer creation
     .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
