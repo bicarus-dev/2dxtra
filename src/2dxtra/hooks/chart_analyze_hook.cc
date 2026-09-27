@@ -55,6 +55,7 @@ namespace iidxtra::chart_analyze_hook
         bool g_pass2 = false;
         int  g_mutate_mode = 0;
 
+        std::vector<int> g_mutate_difficulties {};
         std::vector<std::string> g_orig_hashes {};
         std::vector<std::string> g_mutated_hashes {};
         std::vector<std::vector<std::uint8_t>> g_mutated_data {};
@@ -76,10 +77,17 @@ namespace iidxtra::chart_analyze_hook
             if (!g_mutate)
                 return;
 
-            auto const written = g_mutate_mode == 2
-                ? all_scratch::convert_in_place(buf, SCRATCH_CAPACITY)
-                : urafumen::convert_in_place(
-                    buf, SCRATCH_CAPACITY, /*player=*/0, g_mutate_mode == 1);
+            auto written = std::size_t { 0 };
+            auto const rank = g_mutated_hashes.size();
+            if (g_mutate_mode == 2)
+                written = all_scratch::convert_in_place(buf, SCRATCH_CAPACITY);
+            else if (rank < g_mutate_difficulties.size())
+            {
+                written = g_mutate_difficulties[rank] >= 6
+                    ? urafumen::convert_dp_in_place(buf, SCRATCH_CAPACITY, g_mutate_mode == 1)
+                    : urafumen::convert_in_place(
+                        buf, SCRATCH_CAPACITY, /*player=*/0, g_mutate_mode == 1);
+            }
 
             if (written > 0)
             {
@@ -165,6 +173,11 @@ namespace iidxtra::chart_analyze_hook
             auto dummy_rec = std::vector<std::uint8_t>(sizeof(bm2dx::music_entry_t), 0);
             std::memcpy(dummy_rec.data(), entry, sizeof(bm2dx::music_entry_t));
 
+            g_mutate_difficulties.clear();
+            for (auto difficulty = 0; difficulty < static_cast<int>(DIFF_COUNT); ++difficulty)
+                if (is_valid_diff(gate_rating(entry)[difficulty]))
+                    g_mutate_difficulties.push_back(difficulty);
+
             g_mutate_mode = mode;
             g_pass2 = true;
             g_mutate = true;
@@ -174,6 +187,7 @@ namespace iidxtra::chart_analyze_hook
                 scratch, dummy_rec.data(), dummy_v22, flag);
             g_mutate = false;
             g_pass2 = false;
+            g_mutate_difficulties.clear();
 
             return !g_mutated_hashes.empty();
         }
@@ -240,6 +254,8 @@ namespace iidxtra::chart_analyze_hook
 
                         auto const& mh = hash_for_diff(g_mutated_hashes, entry, di.d);
                         auto const* data = data_for_diff(g_mutated_data, entry, di.d);
+                        if (mode < 2 && di.d >= 6 && (mh.empty() || data->empty()))
+                            continue;
 
                         database::chart_row row;
                         row.chart_set  = mode;

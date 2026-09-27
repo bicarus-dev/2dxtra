@@ -19,6 +19,7 @@ namespace
     auto constexpr GAP_DECAY_THRESHOLD = 350;
     auto constexpr GAP_STEP = 10;
     auto constexpr SAME_SAMPLE_GAP = 80;
+    auto constexpr DP_SPACING_MULTIPLIER = 4;
 
     auto constexpr PLAYABLE_LANE_COUNT = 7;
     auto constexpr COLUMN_COUNT = 8;
@@ -29,11 +30,13 @@ namespace
         int threshold;
         int density_cap;
         int measure_interval;
+        int chord_cap;
 
         explicit generation_settings(const bool kichiku):
             threshold { kichiku ? 200: 250 },
             density_cap { kichiku ? 100: 50 },
-            measure_interval { kichiku ? 4: 8 } {}
+            measure_interval { kichiku ? 4: 8 },
+            chord_cap { kichiku ? 5: 3 } {}
     };
 
     struct placement_candidate
@@ -71,31 +74,50 @@ namespace
         return 0;
     }
 
+    auto notes_per_hand_at_tick(const std::vector<placement_candidate>& candidates,
+        const int index) -> std::array<int, 2>
+    {
+        auto counts = std::array<int, 2> {};
+        auto const offset = candidates[index].offset;
+        auto begin = index;
+        while (begin > 0 && candidates[begin - 1].offset == offset)
+            --begin;
+        for (auto scan = begin; scan < static_cast<int>(candidates.size()) &&
+            candidates[scan].offset == offset; ++scan)
+        {
+            auto const lane_plus_one = candidates[scan].lane_plus_one;
+            if (lane_plus_one != 0)
+                ++counts[(lane_plus_one - 1) / PLAYABLE_LANE_COUNT];
+        }
+        return counts;
+    }
+
+    template<std::size_t KeyCount>
     struct lane_frame
     {
-        std::array<std::int32_t, 17> raw {};
+        std::array<std::int32_t, KeyCount + 1> samples {};
+        std::array<std::int32_t, KeyCount + 1> free_from {};
 
         lane_frame()
         {
-            for (auto i = 1; i < 9; ++i)
-                raw[i] = NO_VALUE;
+            samples.fill(NO_VALUE);
         }
 
         auto lane_sample(const int lane) const -> std::int32_t
-            { return raw[1 + lane]; }
+            { return samples[lane]; }
         auto lane_free_from(const int lane) const -> std::int32_t
-            { return raw[9 + lane]; }
+            { return free_from[lane]; }
 
         auto set_lane_sample(const int lane, const std::int32_t value) -> void
-            { raw[1 + lane] = value; }
+            { samples[lane] = value; }
         auto set_lane_free_from(const int lane, const std::int32_t value) -> void
-            { raw[9 + lane] = value; }
+            { free_from[lane] = value; }
 
         auto record_real_note(const placement_candidate& rec) -> void
         {
-            auto const column = rec.lane_plus_one;
-            raw[8 + column] = rec.offset + rec.freeze_length;
-            raw[column] = rec.sample_value;
+            auto const lane = rec.lane_plus_one - 1;
+            set_lane_free_from(lane, rec.offset + rec.freeze_length);
+            set_lane_sample(lane, rec.sample_value);
         }
     };
 
@@ -207,11 +229,26 @@ namespace
         return count;
     }
 
-    auto lane_priority_for_toggle(const int toggle) -> std::array<int, PLAYABLE_LANE_COUNT>
+    template<std::size_t KeyCount = PLAYABLE_LANE_COUNT>
+    auto lane_priority_for_toggle(const int toggle) -> std::array<int, KeyCount>
     {
-        return toggle == 0
-            ? std::array { 6, 4, 2, 0, 5, 1, 7 }
-            : std::array { 0, 2, 4, 6, 1, 5, 7 };
+        static_assert(KeyCount == PLAYABLE_LANE_COUNT || KeyCount == 2 * PLAYABLE_LANE_COUNT);
+        auto const priority = toggle == 0
+            ? std::array { 6, 4, 2, 0, 5, 1, 3 }
+            : std::array { 0, 2, 4, 6, 1, 5, 3 };
+
+        if constexpr (KeyCount == PLAYABLE_LANE_COUNT)
+            return priority;
+        else
+        {
+            auto combined = std::array<int, KeyCount> {};
+            for (std::size_t index = 0; index < priority.size(); ++index)
+            {
+                combined[2 * index] = priority[index] + (toggle == 0 ? 0 : PLAYABLE_LANE_COUNT);
+                combined[2 * index + 1] = priority[index] + (toggle == 0 ? PLAYABLE_LANE_COUNT : 0);
+            }
+            return combined;
+        }
     }
 
     auto add_sample_occurrence(std::vector<weighted_sample>& working_set,
@@ -239,6 +276,7 @@ namespace
                 std::swap(working_set[k - 1], working_set[k]);
     }
 
+    template<std::size_t KeyCount = PLAYABLE_LANE_COUNT>
     auto collect_group_samples(const std::vector<placement_candidate>& candidates,
         const int cursor, const int count, const std::int32_t span_ticks)
         -> std::pair<std::vector<weighted_sample>, int>
@@ -246,7 +284,8 @@ namespace
         auto working_set = std::vector<weighted_sample> {};
         auto scan = cursor;
         auto const group_base_offset =
-            cursor < static_cast<int>(candidates.size()) ? candidates[cursor].offset: 0;
+            KeyCount == PLAYABLE_LANE_COUNT && cursor < static_cast<int>(candidates.size())
+                ? candidates[cursor].offset: 0;
 
         while (scan < count)
         {
@@ -263,12 +302,13 @@ namespace
         return { std::move(working_set), scan };
     }
 
+    template<std::size_t KeyCount>
     auto score_lanes_for_sample(const std::vector<placement_candidate>& candidates,
         const int candidate_count,
         const std::uint16_t entry_value, const int entry_occurrences,
-        const int threshold, const generation_settings& settings, lane_frame& frame,
-        std::array<std::uint8_t, COLUMN_COUNT>& lane_density,
-        std::array<int, COLUMN_COUNT>& lane_accepts) -> bool
+        const int threshold, const generation_settings& settings, lane_frame<KeyCount>& frame,
+        std::array<std::uint8_t, KeyCount + 1>& lane_density,
+        std::array<int, KeyCount + 1>& lane_accepts, const int candidate_start = 0) -> bool
     {
         auto remaining = entry_occurrences;
 
@@ -282,20 +322,28 @@ namespace
                 continue;
             }
 
-            if (rec.sample_value != entry_value)
+            if (index < candidate_start || rec.sample_value != entry_value)
                 continue;
 
             auto const record_offset = rec.offset;
 
-            for (auto lane = 0; lane < PLAYABLE_LANE_COUNT; ++lane)
+            auto chord_counts = std::array<int, 2> {};
+            if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                chord_counts = notes_per_hand_at_tick(candidates, index);
+
+            for (auto lane = 0; lane < static_cast<int>(KeyCount); ++lane)
             {
+                if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                    if (chord_counts[lane / PLAYABLE_LANE_COUNT] >= settings.chord_cap)
+                        continue;
+
                 auto const free_from = frame.lane_free_from(lane);
 
                 if (record_offset < free_from)
                     continue;
 
                 auto const required_gap =
-                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP: threshold;
+                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP * (KeyCount == PLAYABLE_LANE_COUNT ? 1 : DP_SPACING_MULTIPLIER): threshold;
                 auto const gap = record_offset - free_from;
 
                 if (gap < required_gap)
@@ -323,21 +371,23 @@ namespace
         return false;
     }
 
-    auto favour_unused_lanes(std::array<int, COLUMN_COUNT>& lane_accepts,
+    template<std::size_t SlotCount>
+    auto favour_unused_lanes(std::array<int, SlotCount>& lane_accepts,
         const int last_placed_lane_plus_one) -> void
     {
-        for (auto lane = 0; lane < PLAYABLE_LANE_COUNT; ++lane)
+        for (auto lane = 0; lane < static_cast<int>(SlotCount) - 1; ++lane)
             if (lane_accepts[lane] != 0 && (lane + 1) != last_placed_lane_plus_one)
                 lane_accepts[lane] = (lane_accepts[lane] + 1) & 0xFF;
     }
 
-    auto pick_target_lane(const std::array<int, PLAYABLE_LANE_COUNT>& lane_priority,
-        const std::array<int, COLUMN_COUNT>& lane_accepts) -> int
+    template<std::size_t KeyCount>
+    auto pick_target_lane(const std::array<int, KeyCount>& lane_priority,
+        const std::array<int, KeyCount + 1>& lane_accepts) -> int
     {
         auto best_accepts = 0;
         auto best_lane_plus_one = 0;
 
-        for (auto slot = 0; slot < PLAYABLE_LANE_COUNT; ++slot)
+        for (std::size_t slot = 0; slot < KeyCount; ++slot)
         {
             auto const lane = lane_priority[slot];
             auto const accepts = lane_accepts[lane];
@@ -352,11 +402,13 @@ namespace
         return best_lane_plus_one;
     }
 
+    template<std::size_t KeyCount>
     auto place_sample_on_lane(std::vector<placement_candidate>& candidates,
         const int candidate_count,
         const std::uint16_t entry_value, const int entry_occurrences,
         const int threshold, const int lane, const int lane_plus_one,
-        lane_frame& frame) -> int
+        lane_frame<KeyCount>& frame, const int candidate_start = 0,
+        const int chord_cap = PLAYABLE_LANE_COUNT) -> int
     {
         auto placed = 0;
         auto remaining = entry_occurrences;
@@ -371,16 +423,20 @@ namespace
                 continue;
             }
 
-            if (rec.sample_value != entry_value)
+            if (index < candidate_start || rec.sample_value != entry_value)
                 continue;
 
             auto const record_offset = rec.offset;
             auto const free_from = frame.lane_free_from(lane);
 
-            if (record_offset >= free_from)
+            auto chord_full = false;
+            if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                chord_full = notes_per_hand_at_tick(candidates, index)[lane / PLAYABLE_LANE_COUNT] >= chord_cap;
+
+            if (!chord_full && record_offset >= free_from)
             {
                 auto const required_gap =
-                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP: threshold;
+                    frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP * (KeyCount == PLAYABLE_LANE_COUNT ? 1 : DP_SPACING_MULTIPLIER): threshold;
 
                 if ((record_offset - free_from) >= required_gap)
                 {
@@ -405,17 +461,20 @@ namespace
         return placed;
     }
 
+    template<std::size_t KeyCount = PLAYABLE_LANE_COUNT>
     auto generate_group_notes(generation_state& state, const std::int32_t span_ticks,
         const generation_settings& settings,
         std::vector<placement_candidate>& candidates) -> int
     {
-        auto const threshold = settings.threshold;
-        auto const count = state.candidate_count;
-        auto const lane_priority = lane_priority_for_toggle(state.priority_toggle);
-
-        auto [working_set, scan] = collect_group_samples(
-            candidates, state.next_candidate, count, span_ticks);
+        // DP's extra lanes allow more notes to be added - almost double if we use SP algorithm as-is.
+        // To compensate for this, use 4x normal and repeated-keysound spacing to avoid adding too many.
+        auto const threshold = settings.threshold * (KeyCount == PLAYABLE_LANE_COUNT ? 1 : DP_SPACING_MULTIPLIER);
+        auto const lane_priority = lane_priority_for_toggle<KeyCount>(state.priority_toggle);
+        auto const candidate_start = KeyCount == PLAYABLE_LANE_COUNT ? 0 : state.next_candidate;
+        auto [working_set, scan] = collect_group_samples<KeyCount>(
+            candidates, state.next_candidate, state.candidate_count, span_ticks);
         state.next_candidate = scan;
+        auto const count = KeyCount == PLAYABLE_LANE_COUNT ? state.candidate_count : scan;
 
         auto placed_total = 0;
         auto last_placed_lane_plus_one = 0;
@@ -425,13 +484,13 @@ namespace
             auto const entry_value = working_set[entry].value;
             auto const entry_occurrences = working_set[entry].occurrences;
 
-            auto frame = lane_frame {};
-            auto lane_density = std::array<std::uint8_t, COLUMN_COUNT> {};
-            auto lane_accepts = std::array<int, COLUMN_COUNT> {};
+            auto frame = lane_frame<KeyCount> {};
+            auto lane_density = std::array<std::uint8_t, KeyCount + 1> {};
+            auto lane_accepts = std::array<int, KeyCount + 1> {};
 
             auto const capped = score_lanes_for_sample(candidates, count,
                 entry_value, entry_occurrences, threshold, settings, frame,
-                lane_density, lane_accepts);
+                lane_density, lane_accepts, candidate_start);
 
             if (capped)
                 continue;
@@ -445,8 +504,12 @@ namespace
 
             last_placed_lane_plus_one = lane_plus_one;
 
+            if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                frame = {};
+
             placed_total += place_sample_on_lane(candidates, count, entry_value,
-                entry_occurrences, threshold, lane_plus_one - 1, lane_plus_one, frame);
+                entry_occurrences, threshold, lane_plus_one - 1, lane_plus_one, frame, candidate_start,
+                settings.chord_cap);
         }
 
         state.priority_toggle ^= 1;
@@ -454,6 +517,7 @@ namespace
         return placed_total;
     }
 
+    template<std::size_t KeyCount = PLAYABLE_LANE_COUNT>
     auto run_generator(std::vector<placement_candidate>& candidates,
         std::span<const event> chart, const generation_settings& settings) -> int
     {
@@ -464,6 +528,7 @@ namespace
         auto placed_total = 0;
         auto group_start_offset = std::int32_t { 0 };
         auto eos_offset = std::int32_t { 0 };
+        auto last_bar = std::int32_t { -1 };
 
         for (const auto& e: chart)
         {
@@ -475,20 +540,28 @@ namespace
 
             if (e.type == MEASURE_BAR)
             {
+                if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                {
+                    if (e.offset == last_bar)
+                        continue;
+                    last_bar = e.offset;
+                }
                 ++bars_in_group;
 
                 if (bars_in_group == settings.measure_interval)
                 {
-                    placed_total += generate_group_notes(state,
-                        e.offset - group_start_offset, settings, candidates);
+                    placed_total += generate_group_notes<KeyCount>(state,
+                        KeyCount == PLAYABLE_LANE_COUNT ? e.offset - group_start_offset : e.offset,
+                        settings, candidates);
                     group_start_offset = e.offset;
                     bars_in_group = 0;
                 }
             }
         }
 
-        placed_total += generate_group_notes(state,
-            eos_offset - group_start_offset, settings, candidates);
+        placed_total += generate_group_notes<KeyCount>(state,
+            KeyCount == PLAYABLE_LANE_COUNT ? eos_offset - group_start_offset : eos_offset,
+            settings, candidates);
 
         return placed_total;
     }
@@ -542,6 +615,81 @@ namespace
         }
     }
 
+    auto convert_dp_events(std::span<const event> chart, const bool kichiku) -> std::vector<event>
+    {
+        auto const settings = generation_settings { kichiku };
+        auto candidates = std::vector<placement_candidate> {};
+        for (auto player = 0; player < 2; ++player)
+        {
+            for (auto candidate : build_candidates(chart, player))
+            {
+                if (candidate.lane_plus_one > PLAYABLE_LANE_COUNT ||
+                    (player != 0 && candidate.lane_plus_one == 0))
+                    continue;
+                if (candidate.lane_plus_one != 0)
+                    candidate.lane_plus_one += static_cast<std::uint8_t>(player * PLAYABLE_LANE_COUNT);
+                candidates.push_back(candidate);
+            }
+        }
+        std::stable_sort(candidates.begin(), candidates.end(), [](const placement_candidate& left,
+                                                               const placement_candidate& right) {
+            return left.offset < right.offset;
+        });
+        run_generator<2 * PLAYABLE_LANE_COUNT>(candidates, chart, settings);
+
+        auto totals = std::array<int, 2> {};
+        auto player_candidates = std::array<std::vector<placement_candidate>, 2> {};
+        for (auto candidate : candidates)
+        {
+            if (candidate.lane_plus_one == 0)
+            {
+                player_candidates[0].push_back(candidate);
+                continue;
+            }
+            auto const lane = candidate.lane_plus_one - 1;
+            auto const player = lane / PLAYABLE_LANE_COUNT;
+            if (candidate.marker == 0xCC)
+                ++totals[player];
+            candidate.lane_plus_one = static_cast<std::uint8_t>(lane % PLAYABLE_LANE_COUNT + 1);
+            player_candidates[player].push_back(candidate);
+        }
+
+        auto out = std::vector<event> {};
+        auto first_bgm_seen = false;
+        for (auto record : chart)
+        {
+            if ((record.type == NOTE_P1 || record.type == NOTE_P2 ||
+                 record.type == SAMPLE_P1 || record.type == SAMPLE_P2) &&
+                record.parameter >= 0 && record.parameter < PLAYABLE_LANE_COUNT)
+                continue;
+            if (record.type == BGM)
+            {
+                if (first_bgm_seen)
+                    continue;
+                first_bgm_seen = true;
+            }
+            if (record.type == NOTE_COUNT && record.parameter >= 0 && record.parameter < 2)
+                record.value = static_cast<std::int16_t>(record.value + totals[record.parameter]);
+            out.push_back(record);
+        }
+
+        for (auto player = 0; player < 2; ++player)
+            append_generated_events(out, player_candidates[player], player, player != 0);
+
+        std::stable_sort(out.begin(), out.end(), [](const event& left, const event& right)
+        {
+            if (left.offset != right.offset)
+                return left.offset < right.offset;
+            auto const order = [](const event& record)
+            {
+                return record.type == END_OF_SONG ? 2 :
+                    (record.type == NOTE_P1 || record.type == NOTE_P2 ? 1 : 0);
+            };
+            return order(left) < order(right);
+        });
+        return out;
+    }
+
     auto sort_by_offset(std::vector<event>& events) -> void
     {
         if (events.size() < 2)
@@ -550,6 +698,35 @@ namespace
         std::reverse(events.begin() + 1, events.end());
         std::stable_sort(events.begin() + 1, events.end(),
             [] (const event& a, const event& b) { return a.offset < b.offset; });
+    }
+
+    auto convert_buffer(std::uint8_t* buffer, const std::size_t capacity,
+        const int player, const bool kichiku, const bool double_play) -> std::size_t
+    {
+        if (buffer == nullptr || capacity < urafumen::EVENT_SIZE)
+            return 0;
+
+        auto parsed = urafumen::parse_events_until_eos({ buffer, capacity });
+        if (!parsed)
+            return 0;  // malformed / truncated chart; leave the buffer untouched
+
+        if (double_play && !std::is_sorted(parsed->begin(), parsed->end(),
+            [] (const event& left, const event& right) { return left.offset < right.offset; }))
+            return 0;
+
+        auto const converted = double_play ? convert_dp_events(*parsed, kichiku) :
+            urafumen::convert(*parsed, player, kichiku).events;
+        auto const written = converted.size() * urafumen::EVENT_SIZE;
+        if (written > capacity)
+            return 0;  // converted chart would overflow the buffer
+
+        auto* cursor = buffer;
+        for (auto const& record : converted)
+        {
+            bm2dx::write_chart_event(cursor, record);
+            cursor += urafumen::EVENT_SIZE;
+        }
+        return written;
     }
 }
 
@@ -687,26 +864,11 @@ auto urafumen::convert(std::span<const event> chart, const int player,
 auto urafumen::convert_in_place(std::uint8_t* buffer, const std::size_t capacity,
     const int player, const bool kichiku) -> std::size_t
 {
-    if (buffer == nullptr || capacity < EVENT_SIZE)
-        return 0;
+    return convert_buffer(buffer, capacity, player, kichiku, false);
+}
 
-    auto parsed = parse_events_until_eos({ buffer, capacity });
-    if (!parsed)
-        return 0;  // malformed / truncated chart; leave the buffer untouched
-
-    auto const converted = convert(*parsed, player, kichiku);
-    auto const written = converted.events.size() * EVENT_SIZE;
-
-    if (written > capacity)
-        return 0;  // converted chart would overflow the buffer
-
-    auto* cursor = buffer;
-
-    for (const auto& e: converted.events)
-    {
-        bm2dx::write_chart_event(cursor, e);
-        cursor += EVENT_SIZE;
-    }
-
-    return written;
+auto urafumen::convert_dp_in_place(std::uint8_t* buffer, const std::size_t capacity,
+    const bool kichiku) -> std::size_t
+{
+    return convert_buffer(buffer, capacity, 0, kichiku, true);
 }
