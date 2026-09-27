@@ -79,9 +79,11 @@ namespace iidxtra::chart_analyze_hook
 
             auto written = std::size_t { 0 };
             auto const rank = g_mutated_hashes.size();
-            if (g_mutate_mode == 2)
-                written = all_scratch::convert_in_place(buf, SCRATCH_CAPACITY);
-            else if (rank < g_mutate_difficulties.size())
+            if (g_mutate_mode == 2 && rank < g_mutate_difficulties.size())
+                written = g_mutate_difficulties[rank] >= 6
+                    ? all_scratch::convert_dp_in_place(buf, SCRATCH_CAPACITY)
+                    : all_scratch::convert_in_place(buf, SCRATCH_CAPACITY);
+            else if (g_mutate_mode != 2 && rank < g_mutate_difficulties.size())
             {
                 written = g_mutate_difficulties[rank] >= 6
                     ? urafumen::convert_dp_in_place(buf, SCRATCH_CAPACITY, g_mutate_mode == 1)
@@ -254,7 +256,7 @@ namespace iidxtra::chart_analyze_hook
 
                         auto const& mh = hash_for_diff(g_mutated_hashes, entry, di.d);
                         auto const* data = data_for_diff(g_mutated_data, entry, di.d);
-                        if (mode < 2 && di.d >= 6 && (mh.empty() || data->empty()))
+                        if (di.d >= 6 && (mh.empty() || data->empty()))
                             continue;
 
                         database::chart_row row;
