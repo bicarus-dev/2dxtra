@@ -87,6 +87,9 @@ versions.push_back({
     .RETRY_OPTIONS_FN         = base + 0x0896510, // option text: subscreen chart-retry dialog
     .PACEMAKER_OPTIONS_FN     = base + 0x0a46500, // option text: pacemaker panel
 
+    .RANDOM_SEQUENCE_DRAW_FN  = base + 0x0904d70, // native Random Sequence renderer
+    .RANDOM_TICKET_DATA_FN    = base + 0x08855b0, // RandomLane::CRandomLaneTicketGameData getter
+
     .SUB_MOVIE_INIT_RETURN    = base + 0x08f8897, // return from mode getter before the demo-only movie layer creation
     .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
     .SUB_TITLE_CALL_RETURN    = base + 0x0905361, // return from mode getter before calling the subscreen title renderer

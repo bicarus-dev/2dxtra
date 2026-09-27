@@ -95,6 +95,9 @@ struct offsets
     std::uint8_t* RETRY_OPTIONS_FN;       // option text: subscreen chart-retry dialog
     std::uint8_t* PACEMAKER_OPTIONS_FN;   // option text: pacemaker panel
 
+    std::uint8_t* RANDOM_SEQUENCE_DRAW_FN;  // identifies display-only ticket reads
+    std::uint8_t* RANDOM_TICKET_DATA_FN;    // RandomLane::CRandomLaneTicketGameData getter
+
     // Optional concentration movie support; return sites identify subscreen-only mode checks.
     std::uint8_t* SUB_MOVIE_INIT_RETURN = nullptr; // creates the demo movie layer
     std::uint8_t* SUB_MOVIE_DRAW_RETURN = nullptr; // updates its movie texture

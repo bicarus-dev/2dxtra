@@ -87,6 +87,9 @@ versions.push_back({
     .RETRY_OPTIONS_FN       = base + 0x07c92e0, // option text: subscreen chart-retry dialog
     .PACEMAKER_OPTIONS_FN   = base + 0x09795e0, // option text: pacemaker panel
 
+    .RANDOM_SEQUENCE_DRAW_FN  = base + 0x0837b40, // native Random Sequence renderer
+    .RANDOM_TICKET_DATA_FN    = base + 0x07b8380, // RandomLane::CRandomLaneTicketGameData getter
+
     // offsets: data
     .GAME_MODEL               = base + 0x0f81d40, // the mutable copy of the ea3 model string
     .GAME_STATE               = base + 0xabd7960, // state block; p1_active/p2_active at +0x10/+0x14 pin it down
