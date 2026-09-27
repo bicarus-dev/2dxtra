@@ -25,6 +25,7 @@
 #include "hooks/attract_randomizer_hook.h"
 #include "features/autoplay.h"
 #include "features/unrandomizer.h"
+#include "features/play_option.h"
 #include "features/autoretry.h"
 #include "features/chart_speed.h"
 #include "features/play_visuals.h"
@@ -73,6 +74,7 @@ namespace iidxtra
 		fast_slow_hook::install_hook();
 		autoplay::install_hook();
 		unrandomizer::install_hook();
+		play_option::install_hook();
 		attract_randomizer_hook::install_hook();
 		chart_speed::install_hook();
 		play_visuals::install_hook();

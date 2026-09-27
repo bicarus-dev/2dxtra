@@ -81,6 +81,12 @@ versions.push_back({
     .GET_SAVED_HI_SPEED       = base + 0x0895b80, // option block +4 divided by native speed scale
     .SET_HI_SPEED             = base + 0x0829630, // preserves interpolation, clamps target speed
 
+    .SRAN_CANDIDATE_CHECK     = base + 0x0822a86, // S-RAN note placement algorithm; used to override with H-RAN
+
+    .RESULT_OPTIONS_FN        = base + 0x0896dc0, // option text: result screen, Analyze Play on subscreen
+    .RETRY_OPTIONS_FN         = base + 0x0896510, // option text: subscreen chart-retry dialog
+    .PACEMAKER_OPTIONS_FN     = base + 0x0a46500, // option text: pacemaker panel
+
     .SUB_MOVIE_INIT_RETURN    = base + 0x08f8897, // return from mode getter before the demo-only movie layer creation
     .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
     .SUB_TITLE_CALL_RETURN    = base + 0x0905361, // return from mode getter before calling the subscreen title renderer
