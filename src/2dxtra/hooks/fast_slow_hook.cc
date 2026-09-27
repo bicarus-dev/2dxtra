@@ -474,6 +474,7 @@ namespace iidxtra::fast_slow_hook
                              const float scale, const unsigned int layer, const unsigned int flags) -> void*
     {
         const auto sprite = original_sprite_draw_fn(manager, name, horizontal, vertical, scale, layer, flags);
+
         if (!sprite || !name || rendering.text[0] == '\0')
             return sprite;
 

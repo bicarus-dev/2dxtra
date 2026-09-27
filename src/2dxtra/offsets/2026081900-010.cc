@@ -81,6 +81,15 @@ versions.push_back({
     .GET_SAVED_HI_SPEED       = base + 0x0895b80, // option block +4 divided by native speed scale
     .SET_HI_SPEED             = base + 0x0829630, // preserves interpolation, clamps target speed
 
+    .SUB_MOVIE_INIT_RETURN    = base + 0x08f8897, // return from mode getter before the demo-only movie layer creation
+    .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
+    .SUB_TITLE_CALL_RETURN    = base + 0x0905361, // return from mode getter before calling the subscreen title renderer
+    .SUB_TITLE_DRAW_RETURN    = base + 0x0a4aff3, // return from mode getter at the title renderer's own demo check
+    .GET_GAME_MODE_FN         = base + 0x09493c0, // shared game-mode getter; only the above callers receive the demo override
+    .CONCENTRATION_SHOW_FN    = base + 0x09c5da0, // shows/hides the native concentration background
+    .PLAY_SCENE_DRAW_FN       = base + 0x0905150, // per-frame play UI draw; subscreen state is applied before this call
+    .SUBSCREEN_UI_SHOW_FN     = base + 0x09c5ae0, // hides/restores the normal subscreen controls and windows
+
     // offsets: data
     .GAME_MODEL               = base + 0x1080d40, // the mutable copy of the ea3 model string
     .GAME_STATE               = base + 0xacd79a0, // state block; p1_active/p2_active at +0x10/+0x14 pin it down
@@ -98,4 +107,5 @@ versions.push_back({
     .PLAY_SESSION             = base + 0xaba9a30, // gameplay session block (pacemaker type, personal best, in-game flag)
     .DEAD_STATE               = base + 0xaba95e0, // per-player alive flags from the failure handler's shared getter
     .HI_SPEED_STATE           = base + 0xaaad6c0, // singleton returned by 0x8297e0
+    .SUB_MOVIE_CLIP           = base + 0xaba8b50, // pointer cleared by native movie cleanup
 });

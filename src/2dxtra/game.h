@@ -342,12 +342,15 @@ namespace bm2dx
 		bool in_gameplay; //0x0054
         std::uint8_t pad_0055[0x33]; //0x0055
         bool ready; //0x0088, set when the READY animation starts
-        std::uint8_t pad_0089[0x38B]; //0x0089
+        std::uint8_t pad_0089[0x8B]; //0x0089
+        std::int32_t SUB_TITLE_y; //0x0114
+        std::uint8_t pad_0118[0x2FC]; //0x0118
 		std::uint32_t current_score_pb; //0x0414
 		std::uint8_t pad_0418[0x28]; //0x0418
 		pacemaker_type pacemaker_type_id; //0x0440
 	}; static_assert(offsetof(play_session_t, pacemaker_type_id) == 0x440);
 	static_assert(offsetof(play_session_t, in_gameplay) == 0x54);
+	static_assert(offsetof(play_session_t, SUB_TITLE_y) == 0x114);
     static_assert(offsetof(play_session_t, ready) == 0x88);
 	static_assert(offsetof(play_session_t, current_score_pb) == 0x414);
 
