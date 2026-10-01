@@ -6,6 +6,7 @@
 #include "../gui/unrandomizer_window.h"
 #include "../chart_set.h"
 #include "../score_set.h"
+#include "../features/audio_balance.h"
 #include "../features/autoplay.h"
 #include "../features/cn_override.h"
 #include "../features/regular_speed.h"
@@ -33,6 +34,7 @@ namespace iidxtra::reset_state_hook
         gui::play_lock_state = false;
         gui::unrandomizer_window::reset();
 
+        audio_balance::reset();
         autoplay::reset();
         cn_override::reset();
         regular_speed::reset();

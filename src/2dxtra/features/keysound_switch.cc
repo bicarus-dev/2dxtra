@@ -7,19 +7,10 @@ namespace iidxtra::keysound_switch
     using enum bm2dx::chart_event_type;
 
     auto override_type = 0;
-    auto mute_bgm = false;
 
     auto reset() -> void
     {
         override_type = 0;
-        mute_bgm = false;
-    }
-
-    auto remove_bgm_keysounds(std::vector<bm2dx::chart_event_t>& buffer) -> void
-    {
-        for (auto& event: buffer)
-            if (event.type == BGM) // background note
-                event.value = 0;
     }
 
     auto remove_note_keysounds(std::vector<bm2dx::chart_event_t>& buffer) -> void
@@ -95,10 +86,6 @@ namespace iidxtra::keysound_switch
 
 	auto mutate(std::uint8_t, std::vector<bm2dx::chart_event_t>& buffer) -> void
     {
-        // this is independent of the override type
-        if (mute_bgm)
-            remove_bgm_keysounds(buffer);
-
         // check override types
         if (override_type == 0)
             return;

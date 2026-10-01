@@ -107,4 +107,12 @@ versions.push_back({
     .PLAY_SESSION             = base + 0xaaa99f0, // gameplay session block (pacemaker type, personal best, in-game flag)
     .DEAD_STATE               = base + 0xaaa95a0, // per-player alive flags from the failure handler's shared getter
     .HI_SPEED_STATE           = base + 0xa9ad680, // singleton returned by 0x75c5b0
+
+    .AUDIO_QUEUE_KEY_APPEND   = base + 0x0757f23, // RBX = queue, sample written, count not yet incremented
+    .AUDIO_QUEUE_BGM_APPEND   = base + 0x0757ffc, // RCX = queue, sample written, count not yet incremented
+    .AUDIO_QUEUE_PLAY_RETURN  = base + 0x075803f,
+    .AUDIO_PLAY_FN            = base + 0x09c3a60, // bank/sample playback, before native voice lookup/start
+    .AUDIO_PLAY_RETURN        = base + 0x04f82a5, // ordinary play wrapper's caller is at entry RSP+0x30
+    .AUDIO_GET_VOICE_FN       = base + 0x09c2d50, // returns an owning MSVC shared_ptr through RDX
+    .AUDIO_MIX_GAIN           = base + 0x04b9adb, // XMM8 = native gain * fade; R14 = voice + 8
 });

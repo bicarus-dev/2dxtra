@@ -75,6 +75,7 @@ set(SOURCE_FILES
     src/2dxtra/hooks/attract_randomizer_hook.cc
     src/2dxtra/features/cn_transformer.cc
     src/2dxtra/features/keysound_switch.cc
+    src/2dxtra/features/audio_balance.cc
     src/2dxtra/features/autoplay.cc
     src/2dxtra/features/regular_speed.cc
     src/2dxtra/features/chart_speed.cc

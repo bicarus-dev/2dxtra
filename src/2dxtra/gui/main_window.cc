@@ -14,6 +14,7 @@
 #include "../game.h"
 #include "../chart_set.h"
 #include "../settings.h"
+#include "../features/audio_balance.h"
 #include "../features/autoplay.h"
 #include "../features/regular_speed.h"
 #include "../features/chart_speed.h"
@@ -296,7 +297,45 @@ namespace iidxtra::gui::main_window
                         ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Double-tap START to reset Floating Hi-Speed");
                     }
 
-					// Keysound Switch
+                }
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Audio"))
+            {
+                if (ImGui::CollapsingHeader("Live volume", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::BeginDisabled(!audio_balance::available());
+                    ImGui::Text("Keysounds");
+                    ImGui::SameLine(285);
+                    ImGui::SetNextItemWidth(180);
+                    if (ImGui::SliderInt("##KeysoundVolume", &audio_balance::keysound_percent,
+                                         0, audio_balance::max_percent, "%d%%"))
+                    {
+                        audio_balance::keysound_percent =
+                            std::clamp(audio_balance::keysound_percent, 0, audio_balance::max_percent);
+                        audio_balance::update();
+                    }
+
+                    ImGui::Text("Background music");
+                    ImGui::SameLine(285);
+                    ImGui::SetNextItemWidth(180);
+                    if (ImGui::SliderInt("##BgmVolume", &audio_balance::bgm_percent,
+                                         0, audio_balance::max_percent, "%d%%"))
+                    {
+                        audio_balance::bgm_percent =
+                            std::clamp(audio_balance::bgm_percent, 0, audio_balance::max_percent);
+                        audio_balance::update();
+                    }
+                    ImGui::EndDisabled();
+
+                    if (!audio_balance::available())
+                        ImGui::TextWrapped("%s", audio_balance::status());
+                }
+
+                if (ImGui::CollapsingHeader("Chart sound modifiers", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    // Keysound Switch
 					{
                         auto const options = std::vector<std::tuple<std::string, std::string>> {
                             {"Default", "Use regular key sounds"},
@@ -311,8 +350,6 @@ namespace iidxtra::gui::main_window
 							ImGui::SameLine(285);
 							ImGui::SetNextItemWidth(100);
 							ImGui::SliderInt("##KeysoundType", &keysound_switch::override_type, 0, 3, mode_text.c_str());
-                            ImGui::SameLine(390);
-                            ImGui::Checkbox("Mute BGM", &keysound_switch::mute_bgm);
 						}
 						ImGui::PopStyleVar();
 						ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "%s", descriptive_text.c_str());

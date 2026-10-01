@@ -138,6 +138,14 @@ struct offsets
     std::uint8_t* PLAY_FS_POSITIONS;     // combined/keys/scratch tables, 128 bytes each
     std::uint8_t* PLAY_RED_LINE_STATE;   // four X anchors followed by native initialization flags
     std::uint8_t* HI_SPEED_STATE;           // native scroll-speed singleton
+
+    std::uint8_t* AUDIO_QUEUE_KEY_APPEND = nullptr;
+    std::uint8_t* AUDIO_QUEUE_BGM_APPEND = nullptr;
+    std::uint8_t* AUDIO_QUEUE_PLAY_RETURN = nullptr;
+    std::uint8_t* AUDIO_PLAY_FN = nullptr;
+    std::uint8_t* AUDIO_PLAY_RETURN = nullptr;
+    std::uint8_t* AUDIO_GET_VOICE_FN = nullptr;
+    std::uint8_t* AUDIO_MIX_GAIN = nullptr;
 };
 
 auto inline resolve_offsets(std::uint8_t* base) -> std::optional<offsets>

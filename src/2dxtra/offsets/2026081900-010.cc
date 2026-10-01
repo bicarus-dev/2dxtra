@@ -128,4 +128,12 @@ versions.push_back({
     .PLAY_FS_POSITIONS        = base + 0x107e3f0, // combined/keys/scratch positions: three consecutive 128-byte tables
     .PLAY_RED_LINE_STATE      = base + 0xabaaec0, // four X anchors, then initialization flags at +0x10; height at +0x14 is untouched
     .HI_SPEED_STATE           = base + 0xaaad6c0, // singleton returned by 0x8297e0
+
+    .AUDIO_QUEUE_KEY_APPEND   = base + 0x0825153, // RBX = queue, sample written, count not yet incremented
+    .AUDIO_QUEUE_BGM_APPEND   = base + 0x082522c, // RCX = queue, sample written, count not yet incremented
+    .AUDIO_QUEUE_PLAY_RETURN  = base + 0x082526f,
+    .AUDIO_PLAY_FN            = base + 0x0a90bd0, // bank/sample playback, before native voice lookup/start
+    .AUDIO_PLAY_RETURN        = base + 0x05c5cb5, // ordinary play wrapper's caller is at entry RSP+0x30
+    .AUDIO_GET_VOICE_FN       = base + 0x0a8fec0, // returns an owning MSVC shared_ptr through RDX
+    .AUDIO_MIX_GAIN           = base + 0x04c4d3b, // XMM8 = native gain * fade; R14 = voice + 8
 });

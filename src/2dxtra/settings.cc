@@ -5,6 +5,7 @@
 #include "settings.h"
 #include "gui/gui.h"
 #include "hooks/reset_state_hook.h"
+#include "features/audio_balance.h"
 #include "features/autoplay.h"
 #include "features/autoretry.h"
 #include "features/chart_speed.h"
@@ -57,7 +58,8 @@ namespace iidxtra::settings
         apply("chart_speed.pitch", chart_speed::pitch_follows_rate);
 
         apply("keysound.mode", keysound_switch::override_type, 0, 3);
-        apply("keysound.mute_bgm", keysound_switch::mute_bgm);
+        apply("audio.keysound_percent", audio_balance::keysound_percent, 0, audio_balance::max_percent);
+        apply("audio.bgm_percent", audio_balance::bgm_percent, 0, audio_balance::max_percent);
 
         apply("visuals.dark_mode", play_visuals::dark_mode);
         apply("visuals.no_measure_lines", play_visuals::no_measure_lines);
@@ -166,7 +168,10 @@ namespace iidxtra::settings
         // Load settings from the database
         auto const values = database::load_settings(storage);
         if (values.empty())
+        {
+            audio_balance::update();
             return;
+        }
 
         // Initialize settings from values loaded from the database
         for_each_setting([&](const std::string& key, auto& setting, double min = 0, double max = 1)
@@ -187,6 +192,7 @@ namespace iidxtra::settings
             unrandomizer::reset();
 
         // Update runtime settings
+        audio_balance::update();
         play_visuals::update_dark_mode();
         play_visuals::update_no_measure_lines();
         play_visuals::update_no_bpm_gradient();
