@@ -28,7 +28,7 @@ namespace database
 
     struct db;
 
-    using setting_value = std::variant<std::int64_t, double>;
+    using setting_value = std::variant<std::int64_t, double, std::string>;
     using settings_t = std::vector<std::pair<std::string, setting_value>>;
 
     auto open(const char* path) -> db*;

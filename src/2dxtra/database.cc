@@ -202,11 +202,16 @@ namespace database
                 if (result != SQLITE_OK)
                     break;
 
-                // Value can be either an integer (most settings) or a double (timing windows).
                 if (auto const* integer = std::get_if<std::int64_t>(&value))
                     result = sqlite3_bind_int64(stmt, 2, *integer);
+                else if (auto const* number = std::get_if<double>(&value))
+                    result = sqlite3_bind_double(stmt, 2, *number);
                 else
-                    result = sqlite3_bind_double(stmt, 2, std::get<double>(value));
+                {
+                    auto const& text = std::get<std::string>(value);
+                    result = sqlite3_bind_text(stmt, 2, text.data(),
+                                               static_cast<int>(text.size()), SQLITE_TRANSIENT);
+                }
 
                 if (result != SQLITE_OK)
                     break;
@@ -485,6 +490,12 @@ namespace database
                 {
                     auto const value = sqlite3_column_double(stmt, 1);
                     settings.emplace_back(key, value);
+                    break;
+                }
+                case SQLITE_TEXT:
+                {
+                    auto const* text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                    settings.emplace_back(key, std::string(text, sqlite3_column_bytes(stmt, 1)));
                     break;
                 }
             }

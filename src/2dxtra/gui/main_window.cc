@@ -15,6 +15,7 @@
 #include "../chart_set.h"
 #include "../settings.h"
 #include "../features/audio_balance.h"
+#include "../features/custom_audio.h"
 #include "../features/autoplay.h"
 #include "../features/regular_speed.h"
 #include "../features/chart_speed.h"
@@ -46,6 +47,44 @@ namespace iidxtra::gui::main_window
         return normalize_rate(modified / 20.0f);
     }
 
+    static auto custom_audio_combo(const char* label, custom_audio::channel channel,
+                                  std::string& selection) -> void
+    {
+        auto const& files = custom_audio::files(channel);
+        auto const missing = !selection.empty() && selection != "*" &&
+            std::find(files.begin(), files.end(), selection) == files.end();
+        auto const preview = selection.empty() ? std::string("Default") :
+            selection == "*" ? std::string("Random") :
+            (missing ? "(unavailable) " : "") + selection;
+
+        ImGui::PushID(label);
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(285);
+        ImGui::SetNextItemWidth(240);
+        if (ImGui::BeginCombo("##CustomAudio", preview.c_str()))
+        {
+            auto option = [&](const char* text, const std::string& value)
+            {
+                auto const selected = selection == value;
+                if (ImGui::Selectable(text, selected) && !selected)
+                {
+                    selection = value;
+                    custom_audio::update();
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            };
+            option("Default", "");
+            option("Random", "*");
+            if (missing)
+                ImGui::Selectable(preview.c_str(), true, ImGuiSelectableFlags_Disabled);
+            for (auto const& file : files)
+                option(file.c_str(), file);
+            ImGui::EndCombo();
+        }
+        ImGui::PopID();
+    }
+
     auto render() -> void
     {
         static const char* settings_status = nullptr;
@@ -64,14 +103,16 @@ namespace iidxtra::gui::main_window
             return autoretry_window::render();
 
 		// window setup
-		ImGui::SetNextWindowFocus();
 		ImGui::SetNextWindowPos({ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f}, 0, {0.5f, 0.5f});
 		ImGui::SetNextWindowSize({570, 465});
 		ImGui::Begin("Main", nullptr, ImGuiWindowFlags_NoDecoration);
 
-        // Reset the message used to display settings save/load status
         if (ImGui::IsWindowAppearing())
+        {
+            // Per-frame focus would close combo popups as soon as they open.
+            ImGui::SetWindowFocus();
             settings_status = nullptr;
+        }
 
         // usage hints
         {
@@ -316,6 +357,12 @@ namespace iidxtra::gui::main_window
                             std::clamp(audio_balance::keysound_percent, 0, audio_balance::max_percent);
                         audio_balance::update();
                     }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset##KeysoundVolume"))
+                    {
+                        audio_balance::keysound_percent = 100;
+                        audio_balance::update();
+                    }
 
                     ImGui::Text("Background music");
                     ImGui::SameLine(285);
@@ -327,10 +374,29 @@ namespace iidxtra::gui::main_window
                             std::clamp(audio_balance::bgm_percent, 0, audio_balance::max_percent);
                         audio_balance::update();
                     }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset##BgmVolume"))
+                    {
+                        audio_balance::bgm_percent = 100;
+                        audio_balance::update();
+                    }
                     ImGui::EndDisabled();
 
                     if (!audio_balance::available())
                         ImGui::TextWrapped("%s", audio_balance::status());
+                }
+
+                if (ImGui::CollapsingHeader("Menu music", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::BeginDisabled(!custom_audio::available());
+                    custom_audio_combo("Music select", custom_audio::channel::music_select,
+                                       custom_audio::select_file);
+                    custom_audio_combo("Music decide", custom_audio::channel::music_decide,
+                                       custom_audio::decide_file);
+                    ImGui::EndDisabled();
+                    auto const status = custom_audio::status();
+                    if (!status.empty())
+                        ImGui::TextWrapped("%s", status.c_str());
                 }
 
                 if (ImGui::CollapsingHeader("Chart sound modifiers", ImGuiTreeNodeFlags_DefaultOpen))

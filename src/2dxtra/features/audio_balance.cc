@@ -247,6 +247,5 @@ namespace iidxtra::audio_balance
             hooks[i] = std::move(*hook);
         }
         installed.store(true);
-        log::init("Audio balance installed");
     }
 }

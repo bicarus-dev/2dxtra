@@ -6,6 +6,7 @@
 #include "gui/gui.h"
 #include "hooks/reset_state_hook.h"
 #include "features/audio_balance.h"
+#include "features/custom_audio.h"
 #include "features/autoplay.h"
 #include "features/autoretry.h"
 #include "features/chart_speed.h"
@@ -60,6 +61,8 @@ namespace iidxtra::settings
         apply("keysound.mode", keysound_switch::override_type, 0, 3);
         apply("audio.keysound_percent", audio_balance::keysound_percent, 0, audio_balance::max_percent);
         apply("audio.bgm_percent", audio_balance::bgm_percent, 0, audio_balance::max_percent);
+        apply("audio.custom_select", custom_audio::select_file);
+        apply("audio.custom_decide", custom_audio::decide_file);
 
         apply("visuals.dark_mode", play_visuals::dark_mode);
         apply("visuals.no_measure_lines", play_visuals::no_measure_lines);
@@ -138,7 +141,12 @@ namespace iidxtra::settings
     static auto load_setting_value(Setting& setting, const database::setting_value& saved,
                                    double minimum, double maximum) -> void
     {
-        if constexpr (std::is_floating_point_v<Setting>)
+        if constexpr (std::is_same_v<Setting, std::string>)
+        {
+            if (auto const* value = std::get_if<std::string>(&saved))
+                setting = *value;
+        }
+        else if constexpr (std::is_floating_point_v<Setting>)
         {
             auto const* value = std::get_if<double>(&saved);
             if (value != nullptr && is_valid_setting_value(*value, minimum, maximum))
@@ -155,7 +163,9 @@ namespace iidxtra::settings
     template <typename Setting>
     static auto save_setting_value(Setting setting) -> database::setting_value
     {
-        if constexpr (std::is_floating_point_v<Setting>)
+        if constexpr (std::is_same_v<Setting, std::string>)
+            return setting;
+        else if constexpr (std::is_floating_point_v<Setting>)
             return static_cast<double>(setting);
         else
             return static_cast<std::int64_t>(setting);
@@ -170,6 +180,7 @@ namespace iidxtra::settings
         if (values.empty())
         {
             audio_balance::update();
+            custom_audio::update();
             return;
         }
 
@@ -193,6 +204,7 @@ namespace iidxtra::settings
 
         // Update runtime settings
         audio_balance::update();
+        custom_audio::update();
         play_visuals::update_dark_mode();
         play_visuals::update_no_measure_lines();
         play_visuals::update_no_bpm_gradient();

@@ -4,6 +4,7 @@
 #include "../chart_set.h"
 #include "../score_set.h"
 #include "../features/timing_histogram.h"
+#include "../features/custom_audio.h"
 #include "music_select_hook.h"
 
 namespace iidxtra::music_select_hook
@@ -22,6 +23,7 @@ namespace iidxtra::music_select_hook
 		// Enable chart set switching.
         chart_set::switch_enabled = true;
 
+        custom_audio::enter_select();
 		return reinterpret_cast<void* (*) (void*, int)>(original_music_select_ctor_fn)(a1, a2);
 	}
 

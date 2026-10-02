@@ -7,6 +7,7 @@
 #include "../chart_set.h"
 #include "../score_set.h"
 #include "../features/audio_balance.h"
+#include "../features/custom_audio.h"
 #include "../features/autoplay.h"
 #include "../features/cn_override.h"
 #include "../features/regular_speed.h"
@@ -35,6 +36,7 @@ namespace iidxtra::reset_state_hook
         gui::unrandomizer_window::reset();
 
         audio_balance::reset();
+        custom_audio::reset();
         autoplay::reset();
         cn_override::reset();
         regular_speed::reset();

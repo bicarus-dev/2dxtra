@@ -136,4 +136,8 @@ versions.push_back({
     .AUDIO_PLAY_RETURN        = base + 0x05c5cb5, // ordinary play wrapper's caller is at entry RSP+0x30
     .AUDIO_GET_VOICE_FN       = base + 0x0a8fec0, // returns an owning MSVC shared_ptr through RDX
     .AUDIO_MIX_GAIN           = base + 0x04c4d3b, // XMM8 = native gain * fade; R14 = voice + 8
+    .CUSTOM_AUDIO_START       = base + 0x0a90ca3, // RAX = cache slot; RSI = manager; EDI = bank; EBX = sample; BPL = loop
+    .CUSTOM_AUDIO_LAYER_GAIN  = base + 0x0973710, // default select layer target, before native fades
+    .CUSTOM_AUDIO_LOAD        = base + 0x0a90a10, // native system-sound file loader, including cache replacement
+    .CUSTOM_AUDIO_NAMES       = base + 0x0dd4780, // native SD9 basename table, 648 bytes per record
 });
