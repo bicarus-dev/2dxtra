@@ -7,7 +7,10 @@ namespace iidxtra::custom_audio
 {
     enum class channel { music_select, music_decide };
 
-    // Empty selects Default; "*" selects Random; otherwise store the scanned filename.
+    inline constexpr char follow_bgm[] = "*bgm";
+
+    // Empty selects Default; "*" selects Random; decide also accepts follow_bgm.
+    // Otherwise store the scanned filename.
     extern std::string select_file;
     extern std::string decide_file;
 

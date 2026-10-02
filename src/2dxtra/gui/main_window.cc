@@ -51,10 +51,13 @@ namespace iidxtra::gui::main_window
                                   std::string& selection) -> void
     {
         auto const& files = custom_audio::files(channel);
-        auto const missing = !selection.empty() && selection != "*" &&
+        auto const can_follow_bgm = channel == custom_audio::channel::music_decide;
+        auto const follows_bgm = can_follow_bgm && selection == custom_audio::follow_bgm;
+        auto const missing = !selection.empty() && selection != "*" && !follows_bgm &&
             std::find(files.begin(), files.end(), selection) == files.end();
         auto const preview = selection.empty() ? std::string("Default") :
             selection == "*" ? std::string("Random") :
+            follows_bgm ? std::string("Follow BGM") :
             (missing ? "(unavailable) " : "") + selection;
 
         ImGui::PushID(label);
@@ -76,6 +79,8 @@ namespace iidxtra::gui::main_window
             };
             option("Default", "");
             option("Random", "*");
+            if (can_follow_bgm)
+                option("Follow BGM", custom_audio::follow_bgm);
             if (missing)
                 ImGui::Selectable(preview.c_str(), true, ImGuiSelectableFlags_Disabled);
             for (auto const& file : files)

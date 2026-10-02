@@ -175,6 +175,24 @@ namespace iidxtra::custom_audio
         std::string_view filename = channel.requested_file;
         if (filename.empty())
             return {};
+        if (kind == channel::music_decide && filename == follow_bgm)
+        {
+            if (select_path.empty())
+                return {};
+            // Match the full version suffix, excluding the category prefix and SD9 extension.
+            auto version = std::string_view(select_path).substr(
+                std::string_view("/2dxtra_custom/custom_bgm_").size());
+            version.remove_suffix(4);
+            const auto match = std::find_if(list.begin(), list.end(), [&](const std::string& file)
+            {
+                auto candidate = std::string_view(file).substr(std::string_view("custom_decide_").size());
+                candidate.remove_suffix(4);
+                return candidate == version;
+            });
+            if (match == list.end())
+                return {};
+            return "/2dxtra_custom/" + *match;
+        }
         if (filename == "*")
         {
             if (list.empty())
