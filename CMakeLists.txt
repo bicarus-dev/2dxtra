@@ -77,6 +77,7 @@ set(SOURCE_FILES
     src/2dxtra/features/keysound_switch.cc
     src/2dxtra/features/audio_balance.cc
     src/2dxtra/features/custom_audio.cc
+    src/2dxtra/features/gauge.cc
     src/2dxtra/features/autoplay.cc
     src/2dxtra/features/regular_speed.cc
     src/2dxtra/features/chart_speed.cc

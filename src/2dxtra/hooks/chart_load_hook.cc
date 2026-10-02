@@ -7,6 +7,7 @@
 #include "../features/regular_speed.h"
 #include "../features/chart_speed.h"
 #include "../features/chart_loader.h"
+#include "../features/gauge.h"
 #include "../features/scratch_swap.h"
 #include "../features/cn_transformer.h"
 #include "chart_load_hook.h"
@@ -53,6 +54,7 @@ namespace iidxtra::chart_load_hook
 			cn_transformer::mutate(next_player_id, events);
 			chart_speed::mutate(next_player_id, events);
 		}
+        gauge::capture_chart(next_player_id, events);
 
 		// A mutator that dropped events has to leave the tail zeroed rather
 		// than short, since the game reads the whole fixed-size buffer back.
@@ -90,6 +92,10 @@ namespace iidxtra::chart_load_hook
             last_chart_note_count_p1 = static_cast<bm2dx::chart_buffer_t*>(output)->p1_note_count;
         else if (player == 1)
             last_chart_note_count_p2 = static_cast<bm2dx::chart_buffer_t*>(output)->p2_note_count;
+
+        for (std::uint8_t side = 0; side < 2; ++side)
+            if (gauge::blocks_score(side))
+                score_invalidator_hook::invalidate(side);
 
         // If score saving is disabled at compile-time, instantly invalidate the score.
         #if BLOCK_ALL_SCORE_SAVE == 1

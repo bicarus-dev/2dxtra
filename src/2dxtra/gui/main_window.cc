@@ -16,6 +16,7 @@
 #include "../settings.h"
 #include "../features/audio_balance.h"
 #include "../features/custom_audio.h"
+#include "../features/gauge.h"
 #include "../features/autoplay.h"
 #include "../features/regular_speed.h"
 #include "../features/chart_speed.h"
@@ -344,6 +345,68 @@ namespace iidxtra::gui::main_window
                     }
 
                 }
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Gauge"))
+            {
+                ImGui::BeginDisabled(!gauge::available() || !chart_set::switch_enabled);
+                for (std::size_t player = 0; player < gauge::players.size(); ++player)
+                {
+                    ImGui::PushID(static_cast<int>(player));
+                    auto const label = fmt::format("P{}", player + 1);
+                    if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        auto& options = gauge::players[player];
+                        auto mode = static_cast<int>(options.mode);
+                        ImGui::Text("Gauge Type");
+                        if (options.mode != gauge::type::Default)
+                        {
+                            ImGui::SameLine();
+                            ImGui::TextColored({1.f, 0.5f, 0.5f, 1.f}, " *");
+                        }
+                        ImGui::SameLine(285);
+                        ImGui::SetNextItemWidth(180);
+                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0"))
+                        {
+                            options.mode = static_cast<gauge::type>(mode);
+                            gauge::update();
+                        }
+
+                        if (options.mode == gauge::type::Dan)
+                        {
+                            auto steps = options.dan_start_percent / 2;
+                            auto const percent = fmt::format("{}%%", steps * 2);
+                            ImGui::Text("Starting Gauge");
+                            ImGui::SameLine(285);
+                            ImGui::SetNextItemWidth(180);
+                            if (ImGui::SliderInt("##DanStart", &steps, 1, 50, percent.c_str(),
+                                                 ImGuiSliderFlags_NoInput))
+                            {
+                                options.dan_start_percent = std::clamp(steps, 1, 50) * 2;
+                                gauge::update();
+                            }
+                            ImGui::SameLine();
+                            if (ImGui::Checkbox("KEEP", &options.dan_keep))
+                                gauge::update();
+                        }
+                        else if (options.mode == gauge::type::Erosion)
+                        {
+                            ImGui::Text("Level");
+                            ImGui::SameLine(285);
+                            ImGui::SetNextItemWidth(180);
+                            if (ImGui::SliderInt("##ErosionLevel", &options.erosion_level, 1, 5,
+                                                 "%d", ImGuiSliderFlags_NoInput))
+                                gauge::update();
+                        }
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndDisabled();
+
+                auto const status = gauge::status();
+                if (!status.empty())
+                    ImGui::TextWrapped("%s", status.c_str());
                 ImGui::EndTabItem();
             }
 

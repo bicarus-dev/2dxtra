@@ -111,6 +111,16 @@ struct offsets
     std::uint8_t* PLAY_LAYER_CREATE;      // creates play frame layers
     std::uint8_t* PLAY_ELEMENT_FIND;      // resolves named frame children
 
+    std::uint8_t* GAUGE_RESET = nullptr;
+    std::uint8_t* GAUGE_COEFFICIENTS = nullptr;
+    std::uint8_t* GAUGE_JUDGMENT = nullptr;
+    std::uint8_t* GAUGE_TICK = nullptr;
+    std::uint8_t* GAUGE_APPLY_DELTA = nullptr;
+    std::uint8_t* GAUGE_TICK_MS = nullptr;
+    std::uint8_t* GAUGE_VALUES = nullptr;
+    std::uint8_t* GAUGE_SPECIAL_STATE = nullptr;
+    std::uint8_t* GAUGE_ARTWORK = nullptr; // renderer-local EBP/R15 style; ESI = player
+
     // offsets: variables
     std::uint8_t* GAME_MODEL;             // the mutable ea3 model string ("***:*:*:*:**********")
     std::uint8_t* GAME_STATE;             // bm2dx::state_t

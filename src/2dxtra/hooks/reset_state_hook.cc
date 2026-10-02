@@ -8,6 +8,7 @@
 #include "../score_set.h"
 #include "../features/audio_balance.h"
 #include "../features/custom_audio.h"
+#include "../features/gauge.h"
 #include "../features/autoplay.h"
 #include "../features/cn_override.h"
 #include "../features/regular_speed.h"
@@ -37,6 +38,7 @@ namespace iidxtra::reset_state_hook
 
         audio_balance::reset();
         custom_audio::reset();
+        gauge::reset();
         autoplay::reset();
         cn_override::reset();
         regular_speed::reset();
@@ -57,6 +59,7 @@ namespace iidxtra::reset_state_hook
 	auto reset_state_hook_fn(std::uint32_t a1) -> void*
 	{
         timing_histogram::leave_result();
+        gauge::clear_session();
 
         // revert to default charts
         chart_set::revert();

@@ -102,6 +102,16 @@ versions.push_back({
     .PLAY_LAYER_CREATE        = base + 0x0344080, // native CLayer creation used for play frames, gauge animations and key support
     .PLAY_ELEMENT_FIND        = base + 0x03437a0, // named-child lookup used repeatedly by frame updates and key/turntable renderers
 
+    .GAUGE_RESET              = base + 0x0975390,
+    .GAUGE_COEFFICIENTS       = base + 0x0975ec0,
+    .GAUGE_JUDGMENT           = base + 0x0974a80,
+    .GAUGE_TICK               = base + 0x0976020,
+    .GAUGE_APPLY_DELTA        = base + 0x0975d40,
+    .GAUGE_TICK_MS            = base + 0x08286a0,
+    .GAUGE_VALUES             = base + 0xb287350, // two 20-byte value/coefficient blocks
+    .GAUGE_SPECIAL_STATE      = base + 0xb282758, // two native shared gauge-info pointers
+    .GAUGE_ARTWORK            = base + 0x0903d16,
+
     // offsets: data
     .GAME_MODEL               = base + 0x1080d40, // the mutable copy of the ea3 model string
     .GAME_STATE               = base + 0xacd79a0, // state block; p1_active/p2_active at +0x10/+0x14 pin it down

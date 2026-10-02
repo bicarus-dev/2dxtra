@@ -90,6 +90,16 @@ versions.push_back({
     .RANDOM_SEQUENCE_DRAW_FN  = base + 0x0837b40, // native Random Sequence renderer
     .RANDOM_TICKET_DATA_FN    = base + 0x07b8380, // RandomLane::CRandomLaneTicketGameData getter
 
+    .GAUGE_RESET              = base + 0x08a8270,
+    .GAUGE_COEFFICIENTS       = base + 0x08a8da0,
+    .GAUGE_JUDGMENT           = base + 0x08a7960,
+    .GAUGE_TICK               = base + 0x08a8f00,
+    .GAUGE_APPLY_DELTA        = base + 0x08a8c20,
+    .GAUGE_TICK_MS            = base + 0x075b470,
+    .GAUGE_VALUES             = base + 0xb187310,
+    .GAUGE_SPECIAL_STATE      = base + 0xb182718,
+    .GAUGE_ARTWORK            = base + 0x0836ae6,
+
     // offsets: data
     .GAME_MODEL               = base + 0x0f81d40, // the mutable copy of the ea3 model string
     .GAME_STATE               = base + 0xabd7960, // state block; p1_active/p2_active at +0x10/+0x14 pin it down
