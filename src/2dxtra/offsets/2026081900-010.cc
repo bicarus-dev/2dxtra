@@ -111,6 +111,7 @@ versions.push_back({
     .GAUGE_VALUES             = base + 0xb287350, // two 20-byte value/coefficient blocks
     .GAUGE_SPECIAL_STATE      = base + 0xb282758, // two native shared gauge-info pointers
     .GAUGE_ARTWORK            = base + 0x0903d16,
+    .GAUGE_INDIVIDUAL_COEFFICIENT = base + 0x0974300,
 
     // offsets: data
     .GAME_MODEL               = base + 0x1080d40, // the mutable copy of the ea3 model string

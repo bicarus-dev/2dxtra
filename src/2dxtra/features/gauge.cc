@@ -17,7 +17,9 @@ namespace iidxtra::gauge
     {
         struct option_block
         {
-            std::byte unused[0x4C];
+            std::byte unused[0x40];
+            int normal_gauge;
+            std::byte unused_44[8];
             int special;
             int starting_percent;
             std::byte tail[0x60];
@@ -33,6 +35,7 @@ namespace iidxtra::gauge
             int judgments[4];
         };
         static_assert(sizeof(option_block) == 0xB4);
+        static_assert(offsetof(option_block, normal_gauge) == 0x40);
         static_assert(offsetof(option_block, special) == 0x4C);
         static_assert(offsetof(option_block, starting_percent) == 0x50);
         static_assert(offsetof(native_options, blocks) == 8);
@@ -82,6 +85,7 @@ namespace iidxtra::gauge
             {{32, 0, 0, -600, -1200, -600}, 3, 5.0},
             {{32, -16, -600, -800, -1200, -800}, 3, 6.0}
         }};
+        constexpr std::array<int, 6> ex_dan_judgments {8, 8, 2, -170, -250, -170};
 
         auto remove_hooks() -> void
         {
@@ -158,7 +162,7 @@ namespace iidxtra::gauge
             {
                 const std::lock_guard lock(mutex);
                 for (unsigned player = 0; player < 2; ++player)
-                    if (playing[player].options.mode == type::Dan &&
+                    if (is_dan(playing[player].options.mode) &&
                         playing[player].options.dan_keep && values()[player].value <= 0)
                         carried_percent[player] = 100;
             }
@@ -217,7 +221,7 @@ namespace iidxtra::gauge
                         saved[player] = {current, block_index, block.special, block.starting_percent};
                         block.special = 1;
                         block.starting_percent = 100;
-                        if (run.options.mode == type::Dan)
+                        if (is_dan(run.options.mode))
                             block.starting_percent = run.options.dan_keep ?
                                 carry[player].value_or(run.options.dan_start_percent) : run.options.dan_start_percent;
                     }
@@ -256,6 +260,25 @@ namespace iidxtra::gauge
                 (thresholds[3] - thresholds[2]), 0.0f, 1.0f) * 0.25f;
         }
 
+        auto calculate_hazard_coefficients(unsigned player, int notes) -> void
+        {
+            auto& block = options()->blocks[double_play ? 2 : player];
+            const auto special = block.special;
+            const auto normal_gauge = block.normal_gauge;
+            block.special = 0;
+            block.normal_gauge = 0;
+
+            // Query native Normal coefficients without invoking GSM's simulation.
+            const auto calculate = reinterpret_cast<int (*)(unsigned, int, int)>(
+                bm2dx::addr->GAUGE_INDIVIDUAL_COEFFICIENT);
+            auto& judgments = values()[player].judgments;
+            for (int kind = 0; kind < 4; ++kind)
+                judgments[kind] = calculate(player, kind, notes);
+
+            block.special = special;
+            block.normal_gauge = normal_gauge;
+        }
+
         auto calculate_coefficients(int p1_notes, int p2_notes) -> std::intptr_t
         {
             const auto result = coefficients_hook.call<std::intptr_t>(p1_notes, p2_notes);
@@ -263,6 +286,11 @@ namespace iidxtra::gauge
             for (unsigned player = 0; player < 2; ++player)
             {
                 auto& run = playing[player];
+                if (run.options.mode == type::Hazard)
+                {
+                    calculate_hazard_coefficients(player, player == 0 ? p1_notes : p2_notes);
+                    continue;
+                }
                 if (run.options.mode != type::Erosion)
                     continue;
                 const auto notes = double_play ? static_cast<double>(p1_notes) + p2_notes :
@@ -295,19 +323,41 @@ namespace iidxtra::gauge
 
         auto judgment(int player, int judge) -> void
         {
-            if (player < 0 || player >= 2 || playing[player].options.mode != type::Erosion)
+            if (player < 0 || player >= 2)
             {
                 judgment_hook.call<void>(player, judge);
                 return;
             }
-            if (judge < 0 || judge >= 6)
+
+            const auto& run = playing[player];
+            switch (run.options.mode)
             {
-                report("Unexpected erosion judgment; native gauge update used.");
-                judgment_hook.call<void>(player, judge);
-                return;
+                case type::Hazard:
+                    // Empty POOR (5) retains native damage rather than causing instant failure.
+                    if (judge == 3 || judge == 4)
+                    {
+                        apply_delta(player, -values()[player].value);
+                        return;
+                    }
+                    break;
+                case type::ExDan:
+                case type::Erosion:
+                {
+                    if (judge < 0 || judge >= 6)
+                    {
+                        report("Unexpected special-gauge judgment; native gauge update used.");
+                        break;
+                    }
+                    // Preserve the GSM bypass, but apply these rules without native Dan reduction.
+                    const auto& deltas = run.options.mode == type::ExDan ? ex_dan_judgments :
+                        erosion_levels[run.options.erosion_level - 1].judgment_deltas;
+                    apply_delta(player, deltas[judge]);
+                    return;
+                }
+                default:
+                    break;
             }
-            const auto& level = erosion_levels[playing[player].options.erosion_level - 1];
-            apply_delta(player, level.judgment_deltas[judge]);
+            judgment_hook.call<void>(player, judge);
         }
 
         auto tick(int frame) -> std::intptr_t
@@ -334,11 +384,19 @@ namespace iidxtra::gauge
         auto select_artwork(SafetyHookContext& ctx) -> void
         {
             const auto player = static_cast<unsigned>(ctx.rsi);
-            if (player < playing.size() && playing[player].options.mode == type::Erosion)
+            if (player >= playing.size())
+                return;
+            switch (playing[player].options.mode)
             {
                 // Renderer-local indices select the bar, pulse and tip; gauge rules stay unchanged.
-                ctx.rbp = 3;
-                ctx.r15 = 3;
+                case type::Erosion:
+                case type::ExDan:
+                case type::Hazard:
+                    ctx.rbp = 3;
+                    ctx.r15 = 3;
+                    break;
+                default:
+                    break;
             }
         }
     }
@@ -383,7 +441,7 @@ namespace iidxtra::gauge
         invalidate();
         const std::lock_guard lock(mutex);
         for (unsigned player = 0; player < 2; ++player)
-            if (playing[player].options.mode == type::Dan && playing[player].options.dan_keep)
+            if (is_dan(playing[player].options.mode) && playing[player].options.dan_keep)
             {
                 const auto value = values()[player].value;
                 carried_percent[player] = value <= 0 ? 100 : std::clamp(2 * (value / 100), 2, 100);
@@ -432,7 +490,7 @@ namespace iidxtra::gauge
             !bm2dx::addr->GAUGE_JUDGMENT || !bm2dx::addr->GAUGE_TICK ||
             !bm2dx::addr->GAUGE_APPLY_DELTA || !bm2dx::addr->GAUGE_TICK_MS ||
             !bm2dx::addr->GAUGE_VALUES || !bm2dx::addr->GAUGE_SPECIAL_STATE ||
-            !bm2dx::addr->GAUGE_ARTWORK)
+            !bm2dx::addr->GAUGE_ARTWORK || !bm2dx::addr->GAUGE_INDIVIDUAL_COEFFICIENT)
         {
             report("Special gauges are unavailable for this game build.");
             return;

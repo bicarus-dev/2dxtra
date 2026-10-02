@@ -87,7 +87,7 @@ namespace iidxtra::settings
         {
             auto const prefix = "gauge.p" + std::to_string(player + 1);
             auto& options = gauge::players[player];
-            apply(prefix + ".type", options.mode, 0, 2);
+            apply(prefix + ".type", options.mode, 0, 4);
             apply(prefix + ".dan_start_percent", options.dan_start_percent, 2, 100);
             apply(prefix + ".dan_keep", options.dan_keep);
             apply(prefix + ".erosion_level", options.erosion_level, 1, 5);

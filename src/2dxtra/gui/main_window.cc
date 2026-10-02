@@ -367,13 +367,13 @@ namespace iidxtra::gui::main_window
                         }
                         ImGui::SameLine(285);
                         ImGui::SetNextItemWidth(180);
-                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0"))
+                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0Hazard\0"))
                         {
                             options.mode = static_cast<gauge::type>(mode);
                             gauge::update();
                         }
 
-                        if (options.mode == gauge::type::Dan)
+                        if (gauge::is_dan(options.mode))
                         {
                             auto steps = options.dan_start_percent / 2;
                             auto const percent = fmt::format("{}%%", steps * 2);

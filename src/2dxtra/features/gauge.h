@@ -8,7 +8,12 @@
 
 namespace iidxtra::gauge
 {
-    enum class type { Default, Dan, Erosion };
+    enum class type { Default, Dan, Erosion, ExDan, Hazard };
+
+    constexpr auto is_dan(type mode) -> bool
+    {
+        return mode == type::Dan || mode == type::ExDan;
+    }
 
     struct player_options
     {

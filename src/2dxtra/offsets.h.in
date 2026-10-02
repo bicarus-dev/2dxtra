@@ -120,6 +120,7 @@ struct offsets
     std::uint8_t* GAUGE_VALUES = nullptr;
     std::uint8_t* GAUGE_SPECIAL_STATE = nullptr;
     std::uint8_t* GAUGE_ARTWORK = nullptr; // renderer-local EBP/R15 style; ESI = player
+    std::uint8_t* GAUGE_INDIVIDUAL_COEFFICIENT = nullptr; // (player, kind, note count)
 
     // offsets: variables
     std::uint8_t* GAME_MODEL;             // the mutable ea3 model string ("***:*:*:*:**********")
