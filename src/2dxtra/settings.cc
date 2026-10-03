@@ -13,7 +13,6 @@
 #include "features/cn_override.h"
 #include "features/cn_transformer.h"
 #include "features/fast_slow_display.h"
-#include "features/gauge.h"
 #include "features/hi_speed_reset.h"
 #include "features/keysound_switch.h"
 #include "features/play_visuals.h"
@@ -83,17 +82,6 @@ namespace iidxtra::settings
 
         apply("autoplay.p1", autoplay::enabled_p1);
         apply("autoplay.p2", autoplay::enabled_p2);
-
-        apply("gauge.tint_easy", gauge::tint_easy);
-        for (std::size_t player = 0; player < gauge::players.size(); ++player)
-        {
-            auto const prefix = "gauge.p" + std::to_string(player + 1);
-            auto& options = gauge::players[player];
-            apply(prefix + ".type", options.mode, 0, 3);
-            apply(prefix + ".dan_start_percent", options.dan_start_percent, 2, 100);
-            apply(prefix + ".dan_keep", options.dan_keep);
-            apply(prefix + ".erosion_level", options.erosion_level, 1, 5);
-        }
 
         apply("cn_override.p1", cn_override::p1_override_type, 0, 2);
         apply("cn_override.p2", cn_override::p2_override_type, 0, 2);
@@ -194,7 +182,6 @@ namespace iidxtra::settings
         {
             audio_balance::update();
             custom_audio::update();
-            gauge::update();
             play_visuals::update_bga_darkness();
             return;
         }
@@ -217,13 +204,9 @@ namespace iidxtra::settings
         if (!unrandomizer::is_valid(0) || !unrandomizer::is_valid(1))
             unrandomizer::reset();
 
-        for (auto& options : gauge::players)
-            options.dan_start_percent -= options.dan_start_percent % 2;
-
         // Update runtime settings
         audio_balance::update();
         custom_audio::update();
-        gauge::update();
         play_visuals::update_dark_mode();
         play_visuals::update_bga_darkness();
         play_visuals::update_no_measure_lines();

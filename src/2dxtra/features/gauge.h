@@ -23,6 +23,7 @@ namespace iidxtra::gauge
         int erosion_level = 1;
     };
 
+    // Session-only options, intentionally excluded from database settings.
     extern std::array<player_options, 2> players;
     extern bool tint_easy;
 
