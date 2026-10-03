@@ -429,6 +429,22 @@ namespace iidxtra::gui::main_window
                 if (ImGui::CollapsingHeader("Live volume", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     ImGui::BeginDisabled(!audio_balance::available());
+                    ImGui::Text("Global volume");
+                    ImGui::SameLine(285);
+                    ImGui::SetNextItemWidth(180);
+                    if (ImGui::SliderInt("##GlobalVolume", &audio_balance::global_percent,
+                                         0, audio_balance::global_max_percent, "%d%%"))
+                    {
+                        audio_balance::global_percent =
+                            std::clamp(audio_balance::global_percent, 0, audio_balance::global_max_percent);
+                        audio_balance::update();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset##GlobalVolume"))
+                    {
+                        audio_balance::global_percent = 100;
+                        audio_balance::update();
+                    }
                     ImGui::Text("Keysounds");
                     ImGui::SameLine(285);
                     ImGui::SetNextItemWidth(180);

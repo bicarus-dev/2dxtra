@@ -14,6 +14,7 @@
 
 namespace iidxtra::audio_balance
 {
+    int global_percent = 100;
     int keysound_percent = 100;
     int bgm_percent = 100;
 
@@ -48,11 +49,12 @@ namespace iidxtra::audio_balance
     using get_voice_fn = std::shared_ptr<void>* (*)(void*, std::shared_ptr<void>*, unsigned, unsigned);
     static_assert(sizeof(std::shared_ptr<void>) == 16);
 
-    static std::array<SafetyHookMid, 4> hooks;
+    static std::array<SafetyHookMid, 5> hooks;
 
     static std::atomic_bool installed = false;
     static std::atomic<const char*> failure = nullptr;
     static std::atomic_uint requested = 100u | (100u << 16);
+    static std::atomic_int requested_global = 100;
     static std::mutex voices_mutex;
     static std::unordered_map<void*, voice_state> voices;
     static thread_local std::array<queued_sound, 100> queued;
@@ -77,19 +79,21 @@ namespace iidxtra::audio_balance
 
     auto update() -> void
     {
-        if (keysound_percent < 0 || keysound_percent > max_percent ||
+        if (global_percent < 0 || global_percent > global_max_percent ||
+            keysound_percent < 0 || keysound_percent > max_percent ||
             bgm_percent < 0 || bgm_percent > max_percent)
         {
-            fail("Audio balance disabled: volume must be between 0% and 200%");
+            fail("Audio balance disabled: global volume must be 0%-400%, keysounds/BGM 0%-200%");
             return;
         }
         requested.store(static_cast<unsigned>(keysound_percent) |
                         (static_cast<unsigned>(bgm_percent) << 16));
+        requested_global.store(global_percent);
     }
 
     auto reset() -> void
     {
-        keysound_percent = bgm_percent = 100;
+        global_percent = keysound_percent = bgm_percent = 100;
         update();
     }
 
@@ -209,6 +213,24 @@ namespace iidxtra::audio_balance
         ctx.xmm8.f32[0] *= native_gain * multiplier > 4.0f ? 4.0f / native_gain : multiplier;
     }
 
+    static auto mix_global(SafetyHookContext& ctx) -> void
+    {
+        if (!available())
+            return;
+        const auto percent = requested_global.load();
+        if (percent == 100)
+            return;
+        const auto multiplier = percent / 100.0f;
+        // The four output graphs use CGainWithHardLimiter after their source mix.
+        // Scale gain and both clip bounds together, without changing native node state.
+        for (unsigned lane = 0; lane < 4; ++lane)
+        {
+            ctx.xmm1.f32[lane] *= multiplier;
+            ctx.xmm2.f32[lane] *= multiplier;
+            ctx.xmm3.f32[lane] *= multiplier;
+        }
+    }
+
     auto shutdown() -> void
     {
         installed.store(false);
@@ -222,9 +244,10 @@ namespace iidxtra::audio_balance
     {
         const auto& a = *bm2dx::addr;
         const std::array targets {
-            a.AUDIO_QUEUE_KEY_APPEND, a.AUDIO_QUEUE_BGM_APPEND, a.AUDIO_PLAY_FN, a.AUDIO_MIX_GAIN
+            a.AUDIO_QUEUE_KEY_APPEND, a.AUDIO_QUEUE_BGM_APPEND, a.AUDIO_PLAY_FN, a.AUDIO_MIX_GAIN,
+            a.AUDIO_GLOBAL_MIX
         };
-        const std::array callbacks {queue_key, queue_bgm, play, mix};
+        const std::array callbacks {queue_key, queue_bgm, play, mix, mix_global};
         if (!a.AUDIO_QUEUE_PLAY_RETURN || !a.AUDIO_PLAY_RETURN || !a.AUDIO_GET_VOICE_FN ||
             std::ranges::any_of(targets, [](auto target) { return target == nullptr; }))
         {

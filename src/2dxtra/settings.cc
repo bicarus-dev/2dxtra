@@ -59,6 +59,7 @@ namespace iidxtra::settings
         apply("chart_speed.pitch", chart_speed::pitch_follows_rate);
 
         apply("keysound.mode", keysound_switch::override_type, 0, 3);
+        apply("audio.global_percent", audio_balance::global_percent, 0, audio_balance::global_max_percent);
         apply("audio.keysound_percent", audio_balance::keysound_percent, 0, audio_balance::max_percent);
         apply("audio.bgm_percent", audio_balance::bgm_percent, 0, audio_balance::max_percent);
         apply("audio.custom_select", custom_audio::select_file);

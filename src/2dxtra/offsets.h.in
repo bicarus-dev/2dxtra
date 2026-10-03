@@ -158,6 +158,7 @@ struct offsets
     std::uint8_t* AUDIO_PLAY_RETURN = nullptr;
     std::uint8_t* AUDIO_GET_VOICE_FN = nullptr;
     std::uint8_t* AUDIO_MIX_GAIN = nullptr;
+    std::uint8_t* AUDIO_GLOBAL_MIX = nullptr;
     std::uint8_t* CUSTOM_AUDIO_START = nullptr;
     std::uint8_t* CUSTOM_AUDIO_LAYER_GAIN = nullptr;
     std::uint8_t* CUSTOM_AUDIO_LOAD = nullptr;
