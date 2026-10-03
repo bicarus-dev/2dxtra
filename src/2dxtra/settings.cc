@@ -84,11 +84,12 @@ namespace iidxtra::settings
         apply("autoplay.p1", autoplay::enabled_p1);
         apply("autoplay.p2", autoplay::enabled_p2);
 
+        apply("gauge.tint_easy", gauge::tint_easy);
         for (std::size_t player = 0; player < gauge::players.size(); ++player)
         {
             auto const prefix = "gauge.p" + std::to_string(player + 1);
             auto& options = gauge::players[player];
-            apply(prefix + ".type", options.mode, 0, 4);
+            apply(prefix + ".type", options.mode, 0, 3);
             apply(prefix + ".dan_start_percent", options.dan_start_percent, 2, 100);
             apply(prefix + ".dan_keep", options.dan_keep);
             apply(prefix + ".erosion_level", options.erosion_level, 1, 5);

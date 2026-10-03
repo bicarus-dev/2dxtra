@@ -350,7 +350,21 @@ namespace iidxtra::gui::main_window
 
             if (ImGui::BeginTabItem("Gauge"))
             {
-                ImGui::BeginDisabled(!gauge::available() || !chart_set::switch_enabled);
+                {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                    {
+                        ImGui::Text("Tint ASSIST EASY / EASY Guages");
+                        ImGui::SameLine(285);
+                        ImGui::BeginDisabled(!gauge::available());
+                        if (ImGui::Checkbox("##TintEasyGauges", &gauge::tint_easy))
+                            gauge::update();
+                        ImGui::EndDisabled();
+                    }
+                    ImGui::PopStyleVar();
+                    ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Reduce saturation for ASSIST EASY and EASY gauges");
+                }
+
+                ImGui::BeginDisabled(!gauge::available() || gauge::in_play());
                 for (std::size_t player = 0; player < gauge::players.size(); ++player)
                 {
                     ImGui::PushID(static_cast<int>(player));
@@ -367,7 +381,7 @@ namespace iidxtra::gui::main_window
                         }
                         ImGui::SameLine(285);
                         ImGui::SetNextItemWidth(180);
-                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0Hazard\0"))
+                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0"))
                         {
                             options.mode = static_cast<gauge::type>(mode);
                             gauge::update();

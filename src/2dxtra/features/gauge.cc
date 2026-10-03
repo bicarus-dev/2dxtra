@@ -6,12 +6,14 @@
 #include <optional>
 #include <safetyhook.hpp>
 #include "gauge.h"
+#include "gauge_colors.h"
 #include "../log.h"
 #include "../hooks/score_invalidator_hook.h"
 
 namespace iidxtra::gauge
 {
     std::array<player_options, 2> players;
+    bool tint_easy = false;
 
     namespace
     {
@@ -61,6 +63,7 @@ namespace iidxtra::gauge
         SafetyHookInline reset_hook, coefficients_hook, judgment_hook, tick_hook;
         SafetyHookMid artwork_hook;
         std::atomic_bool installed = false;
+        std::atomic_bool tint_easy_enabled = false;
         std::array<std::atomic_bool, 2> score_blocked {};
         std::mutex mutex;
         std::array<player_options, 2> requested;
@@ -70,7 +73,9 @@ namespace iidxtra::gauge
         std::string error;
         bool double_play = false;
         unsigned dp_player = 0;
-        bool finished = false;
+        std::atomic_bool finished = true;
+        thread_local unsigned artwork_player = 2;
+        thread_local int artwork_easy = 0;
 
         struct erosion_parameters
         {
@@ -153,7 +158,7 @@ namespace iidxtra::gauge
         {
             restore_options();
             playing = {};
-            // A failed attempt to enable a special gauge must remain unsaveable.
+            // Preserve any score restriction already latched for this attempt.
         }
 
         auto reset_native() -> std::intptr_t
@@ -260,25 +265,6 @@ namespace iidxtra::gauge
                 (thresholds[3] - thresholds[2]), 0.0f, 1.0f) * 0.25f;
         }
 
-        auto calculate_hazard_coefficients(unsigned player, int notes) -> void
-        {
-            auto& block = options()->blocks[double_play ? 2 : player];
-            const auto special = block.special;
-            const auto normal_gauge = block.normal_gauge;
-            block.special = 0;
-            block.normal_gauge = 0;
-
-            // Query native Normal coefficients without invoking GSM's simulation.
-            const auto calculate = reinterpret_cast<int (*)(unsigned, int, int)>(
-                bm2dx::addr->GAUGE_INDIVIDUAL_COEFFICIENT);
-            auto& judgments = values()[player].judgments;
-            for (int kind = 0; kind < 4; ++kind)
-                judgments[kind] = calculate(player, kind, notes);
-
-            block.special = special;
-            block.normal_gauge = normal_gauge;
-        }
-
         auto calculate_coefficients(int p1_notes, int p2_notes) -> std::intptr_t
         {
             const auto result = coefficients_hook.call<std::intptr_t>(p1_notes, p2_notes);
@@ -286,11 +272,6 @@ namespace iidxtra::gauge
             for (unsigned player = 0; player < 2; ++player)
             {
                 auto& run = playing[player];
-                if (run.options.mode == type::Hazard)
-                {
-                    calculate_hazard_coefficients(player, player == 0 ? p1_notes : p2_notes);
-                    continue;
-                }
                 if (run.options.mode != type::Erosion)
                     continue;
                 const auto notes = double_play ? static_cast<double>(p1_notes) + p2_notes :
@@ -332,14 +313,6 @@ namespace iidxtra::gauge
             const auto& run = playing[player];
             switch (run.options.mode)
             {
-                case type::Hazard:
-                    // Empty POOR (5) retains native damage rather than causing instant failure.
-                    if (judge == 3 || judge == 4)
-                    {
-                        apply_delta(player, -values()[player].value);
-                        return;
-                    }
-                    break;
                 case type::ExDan:
                 case type::Erosion:
                 {
@@ -384,14 +357,26 @@ namespace iidxtra::gauge
         auto select_artwork(SafetyHookContext& ctx) -> void
         {
             const auto player = static_cast<unsigned>(ctx.rsi);
+            artwork_player = player;
+            artwork_easy = 0;
             if (player >= playing.size())
                 return;
+            if ((ctx.rbp == 0 || ctx.rbp == 1) && bm2dx::state)
+            {
+                const auto current = options();
+                const auto block = bm2dx::state->play_style == static_cast<int>(bm2dx::play_style::DP) ? 2u : player;
+                // Consult the live option after GSM's selection, not the chart's starting gauge.
+                if (current)
+                {
+                    const auto mode = current->blocks[block].normal_gauge;
+                    artwork_easy = mode == 1 || mode == 2 ? mode : 0;
+                }
+            }
             switch (playing[player].options.mode)
             {
                 // Renderer-local indices select the bar, pulse and tip; gauge rules stay unchanged.
                 case type::Erosion:
                 case type::ExDan:
-                case type::Hazard:
                     ctx.rbp = 3;
                     ctx.r15 = 3;
                     break;
@@ -402,6 +387,30 @@ namespace iidxtra::gauge
     }
 
     auto available() -> bool { return installed.load(); }
+    auto in_play() -> bool { return !finished.load(); }
+
+    auto report_color_error(const std::string& message) -> void
+    {
+        report(message);
+    }
+
+    auto tint_sprite(void* sprite, const void* caller) -> void
+    {
+        if (!sprite || !available() || artwork_player >= playing.size() ||
+            (playing[artwork_player].options.mode == type::Default &&
+                (!artwork_easy || !tint_easy_enabled.load())))
+            return;
+
+        // The shared sprite hook also handles unrelated UI. Only tint direct gauge-renderer calls.
+        DWORD64 image_base = 0;
+        const auto function = RtlLookupFunctionEntry(reinterpret_cast<DWORD64>(caller), &image_base, nullptr);
+        const auto artwork = reinterpret_cast<DWORD64>(bm2dx::addr->GAUGE_ARTWORK);
+        if (!function || artwork < image_base + function->BeginAddress ||
+            artwork >= image_base + function->EndAddress)
+            return;
+
+        gauge_colors::apply(sprite, playing[artwork_player].options.mode, artwork_easy == 1);
+    }
 
     auto status() -> std::string
     {
@@ -412,6 +421,7 @@ namespace iidxtra::gauge
     auto update() -> void
     {
         const std::lock_guard lock(mutex);
+        tint_easy_enabled.store(tint_easy);
         for (unsigned player = 0; player < 2; ++player)
         {
             auto& value = players[player];
@@ -462,6 +472,7 @@ namespace iidxtra::gauge
     {
         clear_session();
         players = {};
+        tint_easy = false;
         update();
     }
 
@@ -490,7 +501,7 @@ namespace iidxtra::gauge
             !bm2dx::addr->GAUGE_JUDGMENT || !bm2dx::addr->GAUGE_TICK ||
             !bm2dx::addr->GAUGE_APPLY_DELTA || !bm2dx::addr->GAUGE_TICK_MS ||
             !bm2dx::addr->GAUGE_VALUES || !bm2dx::addr->GAUGE_SPECIAL_STATE ||
-            !bm2dx::addr->GAUGE_ARTWORK || !bm2dx::addr->GAUGE_INDIVIDUAL_COEFFICIENT)
+            !bm2dx::addr->GAUGE_ARTWORK || !bm2dx::addr->GAUGE_RENDERER)
         {
             report("Special gauges are unavailable for this game build.");
             return;

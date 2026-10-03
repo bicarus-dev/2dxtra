@@ -71,7 +71,7 @@ namespace iidxtra::mdata_load_hook
 			log::base_framerate = bm2dx::config->target_fps;
 
 			// Step 3: Print some post-init text.
-			log::init("Welcome to 2dxtra! (v{} - by aixxe)", VERSION_STRING);
+			log::init("Welcome to 2dxtra! (experimental branch by bicarus)");
 			log::init("Press EFFECT twice to open the options menu");
 		});
 	}

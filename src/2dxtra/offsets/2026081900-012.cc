@@ -101,7 +101,7 @@ versions.push_back({
     .GAUGE_VALUES             = base + 0xb187310,
     .GAUGE_SPECIAL_STATE      = base + 0xb182718,
     .GAUGE_ARTWORK            = base + 0x0836ae6,
-    .GAUGE_INDIVIDUAL_COEFFICIENT = base + 0x08a71e0,
+    .GAUGE_RENDERER           = base + 0x034d000,
 
     // offsets: data
     .GAME_MODEL               = base + 0x0f81d40, // the mutable copy of the ea3 model string

@@ -10,6 +10,7 @@
 #include "../game.h"
 #include "../judgment.h"
 #include "../features/fast_slow_display.h"
+#include "../features/gauge.h"
 #include "../features/timing_histogram.h"
 #include "fast_slow_hook.h"
 
@@ -474,6 +475,12 @@ namespace iidxtra::fast_slow_hook
                              const float scale, const unsigned int layer, const unsigned int flags) -> void*
     {
         const auto sprite = original_sprite_draw_fn(manager, name, horizontal, vertical, scale, layer, flags);
+
+#ifdef _MSC_VER
+        gauge::tint_sprite(sprite, _ReturnAddress());
+#else
+        gauge::tint_sprite(sprite, __builtin_return_address(0));
+#endif
 
         if (!sprite || !name || rendering.text[0] == '\0')
             return sprite;
