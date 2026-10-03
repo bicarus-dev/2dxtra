@@ -1,10 +1,12 @@
 #include <MinHook.h>
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
 #include "../game.h"
+#include "../log.h"
 #include "../util/code_patch.h"
 #include "play_visuals.h"
 
@@ -13,6 +15,7 @@ namespace iidxtra::play_visuals
     auto dark_mode = false;
     auto no_measure_lines = false;
     auto no_bpm_gradient = false;
+    auto bga_darkness = 0;
     auto concentration_movie = false;
     auto subscreen_dim_level = 0;
 
@@ -23,6 +26,17 @@ namespace iidxtra::play_visuals
     static constexpr auto demonstration_banner_height = 64;
 
     static auto movie_hooks_available = false;
+    static auto bga_hook_available = false;
+    static std::atomic<float> bga_brightness {1.0f};
+
+    struct bga_context
+    {
+        std::byte unused[0x13A8];
+        void** sprites_begin;
+        void** sprites_end;
+    };
+    static_assert(offsetof(bga_context, sprites_begin) == 629 * sizeof(void*));
+    static_assert(offsetof(bga_context, sprites_end) == 630 * sizeof(void*));
 
     // Publish menu settings separately from the game's concentration transitions.
     static auto subscreen_brightness = std::atomic<float> { 1.0f };
@@ -35,6 +49,42 @@ namespace iidxtra::play_visuals
     static auto original_game_mode_fn = static_cast<std::uint32_t(*)()>(nullptr);
     static auto original_concentration_show_fn = static_cast<void(*)(void*, bool)>(nullptr);
     static auto original_play_scene_draw_fn = static_cast<std::intptr_t(*)(void*)>(nullptr);
+    static auto original_bga_update_fn = static_cast<std::intptr_t(*)(bga_context*)>(nullptr);
+
+    auto bga_darkness_available() -> bool
+    {
+        return bga_hook_available;
+    }
+
+    auto update_bga_darkness() -> void
+    {
+        bga_darkness = std::clamp(bga_darkness, 0, 100);
+        bga_brightness.store(1.0f - bga_darkness / 100.0f);
+    }
+
+    static auto set_brightness(void* sprite, float brightness) -> void
+    {
+        const auto vtable = *static_cast<void***>(sprite);
+        using set_color_fn = std::intptr_t(*)(void*, float, float, float, float);
+        reinterpret_cast<set_color_fn>(vtable[20])(sprite, 1.0f, brightness, brightness, brightness);
+    }
+
+    static auto bga_update_hook_fn(bga_context* context) -> std::intptr_t
+    {
+        const auto result = original_bga_update_fn(context);
+        if (!context || !bm2dx::state)
+            return result;
+
+        // Apply the native RGB multiplier only to the main movie, never its shared texture.
+        const auto brightness = bm2dx::state->game_type == demo_mode ? 1.0f : bga_brightness.load();
+        for (auto sprite = context->sprites_begin; sprite != context->sprites_end; ++sprite)
+        {
+            if (!*sprite)
+                continue;
+            set_brightness(*sprite, brightness);
+        }
+        return result;
+    }
 
     auto concentration_movie_available() -> bool
     {
@@ -135,8 +185,7 @@ namespace iidxtra::play_visuals
             // Multiply RGB, keeping alpha unchanged so the scene's own fades still work.
             // Restore full brightness for native demos or when the option is disabled.
             auto const brightness = customize ? subscreen_brightness.load() : 1.0f;
-            using set_color_fn = std::intptr_t(*)(void*, float, float, float, float);
-            reinterpret_cast<set_color_fn>(vtable[20])(clip, 1.0f, brightness, brightness, brightness);
+            set_brightness(clip, brightness);
         }
     }
 
@@ -149,6 +198,15 @@ namespace iidxtra::play_visuals
 
     auto install_hook() -> void
     {
+        if (bm2dx::addr->BGA_UPDATE_FN)
+        {
+            bga_hook_available = MH_CreateHook(bm2dx::addr->BGA_UPDATE_FN,
+                reinterpret_cast<LPVOID>(bga_update_hook_fn),
+                reinterpret_cast<LPVOID*>(&original_bga_update_fn)) == MH_OK;
+            if (!bga_hook_available)
+                log::print("[Visuals] Failed to install BGA brightness hook");
+        }
+
         // Unsupported profiles leave these optional addresses null, keeping the
         // complete subscreen feature unavailable rather than installing partial behavior.
         if (bm2dx::addr->GET_GAME_MODE_FN == nullptr ||
@@ -193,12 +251,14 @@ namespace iidxtra::play_visuals
         dark_mode = false;
         no_measure_lines = false;
         no_bpm_gradient = false;
+        bga_darkness = 0;
         concentration_movie = false;
         subscreen_dim_level = 0;
 
         update_dark_mode();
         update_no_measure_lines();
         update_no_bpm_gradient();
+        update_bga_darkness();
         update_concentration_movie();
         update_subscreen_dim();
     }

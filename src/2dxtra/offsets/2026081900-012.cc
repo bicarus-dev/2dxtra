@@ -90,6 +90,8 @@ versions.push_back({
     .RANDOM_SEQUENCE_DRAW_FN  = base + 0x0837b40, // native Random Sequence renderer
     .RANDOM_TICKET_DATA_FN    = base + 0x07b8380, // RandomLane::CRandomLaneTicketGameData getter
 
+    .BGA_UPDATE_FN            = base + 0x082a890,
+
     .GAUGE_RESET              = base + 0x08a8270,
     .GAUGE_COEFFICIENTS       = base + 0x08a8da0,
     .GAUGE_JUDGMENT           = base + 0x08a7960,

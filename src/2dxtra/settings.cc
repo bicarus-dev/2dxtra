@@ -66,6 +66,7 @@ namespace iidxtra::settings
         apply("audio.custom_decide", custom_audio::decide_file);
 
         apply("visuals.dark_mode", play_visuals::dark_mode);
+        apply("visuals.bga_darkness", play_visuals::bga_darkness, 0, 100);
         apply("visuals.no_measure_lines", play_visuals::no_measure_lines);
         apply("visuals.no_bpm_gradient", play_visuals::no_bpm_gradient);
         apply("visuals.concentration_movie", play_visuals::concentration_movie);
@@ -193,6 +194,7 @@ namespace iidxtra::settings
             audio_balance::update();
             custom_audio::update();
             gauge::update();
+            play_visuals::update_bga_darkness();
             return;
         }
 
@@ -222,6 +224,7 @@ namespace iidxtra::settings
         custom_audio::update();
         gauge::update();
         play_visuals::update_dark_mode();
+        play_visuals::update_bga_darkness();
         play_visuals::update_no_measure_lines();
         play_visuals::update_no_bpm_gradient();
         play_visuals::update_concentration_movie();

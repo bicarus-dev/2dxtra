@@ -109,6 +109,7 @@ struct offsets
     std::uint8_t* SUBSCREEN_UI_SHOW_FN = nullptr;        // hides/restores the normal subscreen controls
 
     std::uint8_t* PLAY_LAYER_CREATE;      // creates play frame layers
+    std::uint8_t* BGA_UPDATE_FN = nullptr; // updates song-movie display sprites, independent of cameras
     std::uint8_t* PLAY_ELEMENT_FIND;      // resolves named frame children
 
     std::uint8_t* GAUGE_RESET = nullptr;

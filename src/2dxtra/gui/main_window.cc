@@ -529,6 +529,27 @@ namespace iidxtra::gui::main_window
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                         {
+                            ImGui::Text("BGA Darkness");
+                            ImGui::SameLine(285);
+                            ImGui::SetNextItemWidth(100);
+                            ImGui::BeginDisabled(!play_visuals::bga_darkness_available());
+                            auto step = (play_visuals::bga_darkness + 5) / 10;
+                            const auto percent = fmt::format("{}%%", play_visuals::bga_darkness);
+                            if (ImGui::SliderInt("##BgaDarkness", &step, 0, 10, percent.c_str(),
+                                                 ImGuiSliderFlags_NoInput))
+                            {
+                                play_visuals::bga_darkness = step * 10;
+                                play_visuals::update_bga_darkness();
+                            }
+                            ImGui::EndDisabled();
+                        }
+                        ImGui::PopStyleVar();
+                        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Make the main-screen movie darker");
+                    }
+
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        {
                             ImGui::Text("Disable Measure Lines");
                             ImGui::SameLine(285);
                             ImGui::BeginDisabled(bm2dx::play_session->in_gameplay);

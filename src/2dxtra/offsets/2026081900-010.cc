@@ -100,6 +100,7 @@ versions.push_back({
     .SUBSCREEN_UI_SHOW_FN     = base + 0x09c5ae0, // hides/restores the normal subscreen controls and windows
 
     .PLAY_LAYER_CREATE        = base + 0x0344080, // native CLayer creation used for play frames, gauge animations and key support
+    .BGA_UPDATE_FN            = base + 0x08f7ac0,
     .PLAY_ELEMENT_FIND        = base + 0x03437a0, // named-child lookup used repeatedly by frame updates and key/turntable renderers
 
     .GAUGE_RESET              = base + 0x0975390,
