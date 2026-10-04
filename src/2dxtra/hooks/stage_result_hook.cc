@@ -2,6 +2,7 @@
 #include "../chart_set.h"
 #include "../score_set.h"
 #include "../features/timing_histogram.h"
+#include "../features/live_timing.h"
 #include "../features/gauge.h"
 #include "chart_load_hook.h"
 #include "stage_result_hook.h"
@@ -39,6 +40,7 @@ namespace iidxtra::stage_result_hook
 	auto stage_result_hook_fn(void* a1) -> std::uint8_t
 	{
         gauge::finish_play();
+        live_timing::end_play();
 		auto result = reinterpret_cast<std::uint8_t (*) (void*)>(original_stage_result_hook)(a1);
 
         timing_histogram::stop_record();

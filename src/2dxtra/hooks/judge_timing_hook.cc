@@ -1,5 +1,6 @@
 #include <MinHook.h>
 #include "../game.h"
+#include "../log.h"
 #include "../features/timing_modifier.h"
 #include "judge_timing_hook.h"
 
@@ -19,6 +20,11 @@ namespace iidxtra::judge_timing_hook
         return result;
 	}
 
-	auto install_hook() -> void
-		{ MH_CreateHook(bm2dx::addr->TIMING_HOOK_FN, reinterpret_cast<LPVOID>(set_timing_hook_fn), &original_set_timing_fn); }
+    auto install_hook() -> void
+    {
+        const auto timing_result = MH_CreateHook(bm2dx::addr->TIMING_HOOK_FN,
+            reinterpret_cast<LPVOID>(set_timing_hook_fn), &original_set_timing_fn);
+        if (timing_result != MH_OK)
+            log::init("Timing modifier hook unavailable ({})", static_cast<int>(timing_result));
+    }
 }

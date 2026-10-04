@@ -25,6 +25,7 @@
 #include "../features/scratch_flip.h"
 #include "../features/fast_slow_display.h"
 #include "../features/timing_histogram.h"
+#include "../features/live_timing.h"
 #include "../features/hi_speed_reset.h"
 #include "../hooks/fast_slow_hook.h"
 
@@ -175,23 +176,6 @@ namespace iidxtra::gui::main_window
 
 						ImGui::PopStyleVar();
                 		ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Adjust random lane options");
-                	}
-
-                    // Timing Modifier
-                	{
-                		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
-						{
-							ImGui::Text("Timing Modifier");
-							ImGui::SameLine();
-							ImGui::TextColored({1.f, 0.5f, 0.5f, 1.f}, " *");
-							ImGui::SameLine(285);
-
-							if (ImGui::Button("Configure##TimingModifierWindow"))
-                                timing_modifier_window::visible = true;
-						}
-
-						ImGui::PopStyleVar();
-                		ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Alter the judgement timing windows");
                 	}
 
                 	// Auto Play
@@ -642,7 +626,28 @@ namespace iidxtra::gui::main_window
                     }
                 }
 
-                if (ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen))
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Timing"))
+            {
+                if (ImGui::CollapsingHeader("Modifiers", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                    {
+                        ImGui::Text("Timing Modifier");
+                        ImGui::SameLine();
+                        ImGui::TextColored({1.f, 0.5f, 0.5f, 1.f}, " *");
+                        ImGui::SameLine(285);
+
+                        if (ImGui::Button("Configure##TimingModifierWindow"))
+                            timing_modifier_window::visible = true;
+                    }
+                    ImGui::PopStyleVar();
+                    ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Alter the judgement timing windows");
+                }
+
+                if (ImGui::CollapsingHeader("FAST/SLOW", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     ImGui::BeginDisabled();
                     ImGui::TextWrapped("These options only affect FAST/SLOW indicators "
@@ -682,6 +687,48 @@ namespace iidxtra::gui::main_window
                         ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
                                            "Requires 120Hz");
                     }
+                }
+
+                if (ImGui::CollapsingHeader("Live Timing", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                    {
+                        ImGui::Text("Live Timing Indicator");
+                        ImGui::SameLine(285);
+                        ImGui::BeginDisabled(!live_timing::available());
+                        if (ImGui::Checkbox("##LiveTiming", &live_timing::enabled))
+                            live_timing::update();
+                        ImGui::EndDisabled();
+                    }
+                    ImGui::PopStyleVar();
+                    ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
+                        "Keys and scratches; +/-200 ms rounded to whole ticks, 5-second highlights and average");
+                    ImGui::Text("Y Position");
+                    ImGui::SameLine(285);
+                    ImGui::SetNextItemWidth(180);
+                    if (ImGui::SliderInt("##LiveTimingY", &live_timing::y_position, 0, live_timing::max_y))
+                        live_timing::update();
+                    const auto button_size = ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight());
+                    ImGui::BeginDisabled(live_timing::y_position <= 0);
+                    ImGui::SameLine(0, 5.0f);
+                    if (ImGui::Button("-##LiveTimingYDown", button_size))
+                    {
+                        --live_timing::y_position;
+                        live_timing::update();
+                    }
+                    ImGui::EndDisabled();
+                    ImGui::BeginDisabled(live_timing::y_position >= live_timing::max_y);
+                    ImGui::SameLine(0, 5.0f);
+                    if (ImGui::Button("+##LiveTimingYUp", button_size))
+                    {
+                        ++live_timing::y_position;
+                        live_timing::update();
+                    }
+                    ImGui::EndDisabled();
+                    ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Position in 1080p coordinates");
+                    const auto status = live_timing::status();
+                    if (!status.empty())
+                        ImGui::TextWrapped("%s", status.c_str());
                 }
 
                 if (ImGui::CollapsingHeader("Result Screen", ImGuiTreeNodeFlags_DefaultOpen))

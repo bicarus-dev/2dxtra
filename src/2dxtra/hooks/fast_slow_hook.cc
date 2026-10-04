@@ -12,6 +12,7 @@
 #include "../features/fast_slow_display.h"
 #include "../features/gauge.h"
 #include "../features/timing_histogram.h"
+#include "../features/live_timing.h"
 #include "fast_slow_hook.h"
 
 namespace iidxtra::fast_slow_hook
@@ -111,6 +112,8 @@ namespace iidxtra::fast_slow_hook
         timing_t timing;
         bool histogram_sample = false;
         float histogram_milliseconds = 0.0f;
+        bool live_sample = false;
+        int live_tick = 0;
     };
     thread_local auto pending = pending_judgment_t {};
 
@@ -194,7 +197,8 @@ namespace iidxtra::fast_slow_hook
             const auto& addresses = *bm2dx::addr;
 
             const auto options = get_options();
-            const bool capture_enabled = options.enabled() || timing_histogram::is_recording();
+            const bool capture_enabled = options.enabled() || timing_histogram::is_recording() ||
+                live_timing::is_recording();
             const bool valid_note = player >= 0 && player < 2 && lane >= 0 && lane < 8;
             const bool is_press = caller == addresses.JUDGE_PRESS_RETURN;
             const bool is_release = caller == addresses.JUDGE_RELEASE_RETURN;
@@ -220,6 +224,10 @@ namespace iidxtra::fast_slow_hook
                     const bool include_in_histogram = is_press &&
                         grade >= bm2dx::judge_grade::early_good &&
                         grade <= bm2dx::judge_grade::late_good;
+                    const bool include_in_live_timing = is_press &&
+                        grade >= bm2dx::judge_grade::early_bad &&
+                        grade <= bm2dx::judge_grade::late_bad &&
+                        std::isfinite(candidate.milliseconds);
                     pending =
                     {
                         player,
@@ -228,7 +236,9 @@ namespace iidxtra::fast_slow_hook
                                        candidate.ticks,
                                        excessive_poor, options),
                         include_in_histogram,
-                        candidate.milliseconds
+                        candidate.milliseconds,
+                        include_in_live_timing,
+                        candidate.ticks
                     };
                 }
             }
@@ -252,6 +262,13 @@ namespace iidxtra::fast_slow_hook
     {
         const auto result = original_judge_display_fn(display, code, combo, scratch);
         const auto player = read<judge_display_hook_context_t>(display).player;
+
+        if (pending.live_sample && pending.player == player && pending.scratch == scratch &&
+            code != bm2dx::judge_display_code::charge_hold)
+        {
+            pending.live_sample = false;
+            live_timing::record_note(player, pending.live_tick, pending.histogram_milliseconds, code);
+        }
 
         // Code 12 == keep displaying previous judge while charge note is held
         if (pending.histogram_sample &&

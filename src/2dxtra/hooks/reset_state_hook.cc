@@ -25,6 +25,7 @@
 #include "score_invalidator_hook.h"
 #include "../features/fast_slow_display.h"
 #include "../features/timing_histogram.h"
+#include "../features/live_timing.h"
 #include "../features/hi_speed_reset.h"
 
 namespace iidxtra::reset_state_hook
@@ -52,6 +53,7 @@ namespace iidxtra::reset_state_hook
         timing_modifier::reset();
         fast_slow_display::reset();
         timing_histogram::reset();
+        live_timing::reset();
         autoretry::reset();
         hi_speed_reset::reset();
     }
@@ -59,6 +61,7 @@ namespace iidxtra::reset_state_hook
 	auto reset_state_hook_fn(std::uint32_t a1) -> void*
 	{
         timing_histogram::leave_result();
+        live_timing::end_play();
         gauge::clear_session();
 
         // revert to default charts

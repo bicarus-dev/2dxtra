@@ -4,6 +4,7 @@
 #include "../chart_set.h"
 #include "../score_set.h"
 #include "../features/timing_histogram.h"
+#include "../features/live_timing.h"
 #include "../features/custom_audio.h"
 #include "../features/gauge.h"
 #include "music_select_hook.h"
@@ -16,6 +17,7 @@ namespace iidxtra::music_select_hook
 	auto music_select_ctor_hook_fn(void* a1, int a2) -> void*
 	{
         gauge::enter_select();
+        live_timing::end_play();
 		// Refresh the chart sets from the database.
 		chart_set::load_sets();
 

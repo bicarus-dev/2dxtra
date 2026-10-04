@@ -70,6 +70,7 @@ struct offsets
     std::uint8_t* FAIL_DURATION_JMP;        // branch checking whether that animation is done
     std::uint8_t* WNDPROC_FN;               // "PropClassWindowProc" for the game window
     std::uint8_t* TIMING_HOOK_FN;           // last chance to change the judge windows before play
+           // last chance to change the judge windows before play
     std::uint8_t* ATTRACT_SELECT_FN;        // picks the next attract demo chart
     std::uint8_t* IS_SEPARATE_SCRATCH_FN;   // whether separate FAST/SLOW for scratch option is enabled
     std::uint8_t* SPRITE_DRAW_FN;           // creates a named sprite at its native position and layer

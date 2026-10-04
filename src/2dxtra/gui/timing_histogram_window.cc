@@ -4,6 +4,7 @@
 #include <string>
 #include "gui.h"
 #include "timing_histogram_window.h"
+#include "timing_colors.h"
 #include "../features/timing_histogram.h"
 
 namespace iidxtra::gui::timing_histogram_window
@@ -17,13 +18,13 @@ namespace iidxtra::gui::timing_histogram_window
     constexpr auto judgment_styles =
         std::array<judgment_style_t, timing_histogram::judgment_count> {
         // white
-        judgment_style_t {"PGREAT", IM_COL32(255, 255, 255, 255)},
+        judgment_style_t {"PGREAT", timing_colors[0]},
 
         // cyan
-        judgment_style_t {"GREAT", IM_COL32(0, 255, 255, 255)},
+        judgment_style_t {"GREAT", timing_colors[1]},
 
         // yellow
-        judgment_style_t {"GOOD", IM_COL32(255, 255, 0, 255)}
+        judgment_style_t {"GOOD", timing_colors[2]}
     };
 
     auto draw_legend() -> void

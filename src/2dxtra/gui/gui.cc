@@ -5,6 +5,7 @@
 #include "log_window.h"
 #include "main_window.h"
 #include "timing_histogram_window.h"
+#include "../features/live_timing.h"
 #include "res/fonts.h"
 #include "../log.h"
 #include "../input.h"
@@ -150,6 +151,7 @@ namespace iidxtra::gui
         #endif
 
 		timing_histogram_window::render();
+        live_timing::render();
         chart_speed::render_progress();
 		log_window::render();
 

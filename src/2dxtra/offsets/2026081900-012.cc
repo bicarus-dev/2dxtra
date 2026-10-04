@@ -119,6 +119,7 @@ versions.push_back({
     .PLAY_STATE               = base + 0xa6ed450, // per-play score/note counters and the pacemaker target
     .PLAY_SESSION             = base + 0xaaa99f0, // gameplay session block (pacemaker type, personal best, in-game flag)
     .DEAD_STATE               = base + 0xaaa95a0, // per-player alive flags from the failure handler's shared getter
+    .PLAY_NOTE_POS            = base + 0x0f66550, // SP then DP; each side has seven key left edges and scratch
     .HI_SPEED_STATE           = base + 0xa9ad680, // singleton returned by 0x75c5b0
 
     .AUDIO_QUEUE_KEY_APPEND   = base + 0x0757f23, // RBX = queue, sample written, count not yet incremented

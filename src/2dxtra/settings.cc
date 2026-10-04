@@ -20,6 +20,7 @@
 #include "features/scratch_swap.h"
 #include "features/scratch_flip.h"
 #include "features/timing_histogram.h"
+#include "features/live_timing.h"
 #include "features/timing_modifier.h"
 #include "features/unrandomizer.h"
 
@@ -76,6 +77,8 @@ namespace iidxtra::settings
         apply("fast_slow.milliseconds", fast_slow_display::options.show_milliseconds);
         apply("fast_slow.pgreat", fast_slow_display::options.show_pgreat);
         apply("timing_histogram.enabled", timing_histogram::enabled);
+        apply("live_timing.enabled", live_timing::enabled);
+        apply("live_timing.y_position", live_timing::y_position, 0, live_timing::max_y);
 
         apply("autoretry.enabled", autoretry::enabled);
         apply("autoretry.target", autoretry::target, 0, 2);
@@ -183,6 +186,7 @@ namespace iidxtra::settings
         {
             audio_balance::update();
             custom_audio::update();
+            live_timing::update();
             play_visuals::update_bga_darkness();
             return;
         }
@@ -217,6 +221,7 @@ namespace iidxtra::settings
         scratch_flip::update();
         fast_slow_display::update();
         timing_histogram::update();
+        live_timing::update();
     }
 
     auto save() -> bool
