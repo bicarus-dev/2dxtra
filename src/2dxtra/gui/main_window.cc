@@ -357,23 +357,21 @@ namespace iidxtra::gui::main_window
                     {
                         auto& options = gauge::players[player];
                         auto mode = static_cast<int>(options.mode);
-                        const auto row_spacing = options.mode == gauge::type::Default ?
-                            ImGui::GetStyle().ItemSpacing.y : -5.0f;
-                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, row_spacing));
+                        ImGui::Text("Gauge Type");
+                        ImGui::SameLine(285);
+                        ImGui::SetNextItemWidth(180);
+                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0Hazard\0"))
                         {
-                            ImGui::Text("Gauge Type");
-                            ImGui::SameLine(285);
-                            ImGui::SetNextItemWidth(180);
-                            if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0Hazard\0"))
-                            {
-                                options.mode = static_cast<gauge::type>(mode);
-                                gauge::update();
-                            }
+                            options.mode = static_cast<gauge::type>(mode);
+                            gauge::update();
                         }
-                        ImGui::PopStyleVar();
                         if (options.mode != gauge::type::Default)
+                        {
+                            // Tighten the help-text gap without changing the dropdown's item spacing.
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y - 5.0f);
                             ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
                                 "Lamps will not save (NO PLAY), except for FULL COMBO.");
+                        }
 
                         if (gauge::is_dan(options.mode))
                         {
