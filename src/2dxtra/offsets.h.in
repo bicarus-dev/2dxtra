@@ -113,16 +113,18 @@ struct offsets
     std::uint8_t* BGA_UPDATE_FN = nullptr; // updates song-movie display sprites, independent of cameras
     std::uint8_t* PLAY_ELEMENT_FIND;      // resolves named frame children
 
-    std::uint8_t* GAUGE_RESET = nullptr;
-    std::uint8_t* GAUGE_COEFFICIENTS = nullptr;
-    std::uint8_t* GAUGE_JUDGMENT = nullptr;
-    std::uint8_t* GAUGE_TICK = nullptr;
-    std::uint8_t* GAUGE_APPLY_DELTA = nullptr;
-    std::uint8_t* GAUGE_TICK_MS = nullptr;
-    std::uint8_t* GAUGE_VALUES = nullptr;
-    std::uint8_t* GAUGE_SPECIAL_STATE = nullptr;
-    std::uint8_t* GAUGE_ARTWORK = nullptr; // renderer-local EBP/R15 style; ESI = player
-    std::uint8_t* GAUGE_RENDERER = nullptr; // BM2D renderer; native HLS shader at +98464
+    std::uint8_t* GAUGE_RESET = nullptr; // initializes both players' gauges for a new attempt
+    std::uint8_t* GAUGE_DELTA_SETUP = nullptr; // calculates native delta magnitudes from P1/P2 note counts
+    std::uint8_t* GAUGE_JUDGMENT = nullptr; // applies a judgment to a player's gauge (player, judgment 0-5)
+    std::uint8_t* GAUGE_TICK = nullptr; // per-tick gauge update (playback tick index)
+    std::uint8_t* GAUGE_APPLY_DELTA = nullptr; // applies a signed raw gauge delta and handles failure (player, delta)
+    std::uint8_t* GAUGE_TICK_MS = nullptr; // returns the duration of one native playback tick in milliseconds
+    std::uint8_t* GAUGE_VALUES = nullptr; // two 20-byte blocks: raw gauge value and four native delta magnitudes
+    std::uint8_t* GAUGE_SPECIAL_STATE = nullptr; // two native shared gauge-info entries (16 bytes each)
+    std::uint8_t* GAUGE_ARTWORK = nullptr; // artwork-selection mid-hook: ESI = player, EBP/R15 = renderer-local style
+    std::uint8_t* GAUGE_RENDERER = nullptr; // BM2D renderer getter; native HLS shader pointer at +98464
+    std::uint8_t* GAUGE_RESULT_CLEAR = nullptr; // result/submission clear type (player); 0 = NO PLAY, 7 = FULL COMBO
+    std::uint8_t* GAUGE_DELTA_MAGNITUDE = nullptr; // calculates one native delta magnitude (player, kind, note count)
 
     // offsets: variables
     std::uint8_t* GAME_MODEL;             // the mutable ea3 model string ("***:*:*:*:**********")

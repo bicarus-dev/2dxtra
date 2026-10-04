@@ -47,14 +47,10 @@ namespace iidxtra::stage_result_hook
 
 		// The function we're hooking here is called AFTER the game has updated bm2dx::scores.
 		// Backup the entire score structure for scores set on default charts.
-        if (gauge::blocks_score(0))
-            CopyMemory(bm2dx::scores[0], score_set::stock_p1, bm2dx::player_scores_size());
-		else if (bm2dx::state->p1_active && chart_load_hook::last_chart_id_p1.empty())
+		if (bm2dx::state->p1_active && chart_load_hook::last_chart_id_p1.empty())
             CopyMemory(score_set::stock_p1, bm2dx::scores[0], bm2dx::player_scores_size());
 
-        if (gauge::blocks_score(1))
-            CopyMemory(bm2dx::scores[1], score_set::stock_p2, bm2dx::player_scores_size());
-        else if (bm2dx::state->p2_active && chart_load_hook::last_chart_id_p2.empty())
+        if (bm2dx::state->p2_active && chart_load_hook::last_chart_id_p2.empty())
             CopyMemory(score_set::stock_p2, bm2dx::scores[1], bm2dx::player_scores_size());
 
 		if (bm2dx::state->active_music == nullptr)
@@ -62,8 +58,8 @@ namespace iidxtra::stage_result_hook
 
 		auto const music_id = static_cast<std::uint32_t>(bm2dx::state->active_music->id);
 
-		auto score_p1 = gauge::blocks_score(0) ? nullptr : get_custom_chart_score(chart_load_hook::last_chart_id_p1);
-		auto score_p2 = gauge::blocks_score(1) ? nullptr : get_custom_chart_score(chart_load_hook::last_chart_id_p2);
+		auto score_p1 = get_custom_chart_score(chart_load_hook::last_chart_id_p1);
+		auto score_p2 = get_custom_chart_score(chart_load_hook::last_chart_id_p2);
 
 		if (bm2dx::state->play_style == 0)
 		{

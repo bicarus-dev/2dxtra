@@ -13,6 +13,7 @@
 #include "features/cn_override.h"
 #include "features/cn_transformer.h"
 #include "features/fast_slow_display.h"
+#include "features/gauge.h"
 #include "features/hi_speed_reset.h"
 #include "features/keysound_switch.h"
 #include "features/play_visuals.h"
@@ -65,6 +66,7 @@ namespace iidxtra::settings
         apply("audio.bgm_percent", audio_balance::bgm_percent, 0, audio_balance::max_percent);
         apply("audio.custom_select", custom_audio::select_file);
         apply("audio.custom_decide", custom_audio::decide_file);
+        apply("gauge.tint_easy", gauge::tint_easy);
 
         apply("visuals.dark_mode", play_visuals::dark_mode);
         apply("visuals.bga_darkness", play_visuals::bga_darkness, 0, 100);
@@ -186,6 +188,7 @@ namespace iidxtra::settings
         {
             audio_balance::update();
             custom_audio::update();
+            gauge::update_tint();
             live_timing::update();
             play_visuals::update_bga_darkness();
             return;
@@ -212,6 +215,7 @@ namespace iidxtra::settings
         // Update runtime settings
         audio_balance::update();
         custom_audio::update();
+        gauge::update_tint();
         play_visuals::update_dark_mode();
         play_visuals::update_bga_darkness();
         play_visuals::update_no_measure_lines();

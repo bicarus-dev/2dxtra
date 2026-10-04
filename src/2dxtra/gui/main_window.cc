@@ -341,7 +341,7 @@ namespace iidxtra::gui::main_window
                         ImGui::SameLine(285);
                         ImGui::BeginDisabled(!gauge::available());
                         if (ImGui::Checkbox("##TintEasyGauges", &gauge::tint_easy))
-                            gauge::update();
+                            gauge::update_tint();
                         ImGui::EndDisabled();
                     }
                     ImGui::PopStyleVar();
@@ -357,19 +357,23 @@ namespace iidxtra::gui::main_window
                     {
                         auto& options = gauge::players[player];
                         auto mode = static_cast<int>(options.mode);
-                        ImGui::Text("Gauge Type");
+                        const auto row_spacing = options.mode == gauge::type::Default ?
+                            ImGui::GetStyle().ItemSpacing.y : -5.0f;
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, row_spacing));
+                        {
+                            ImGui::Text("Gauge Type");
+                            ImGui::SameLine(285);
+                            ImGui::SetNextItemWidth(180);
+                            if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0Hazard\0"))
+                            {
+                                options.mode = static_cast<gauge::type>(mode);
+                                gauge::update();
+                            }
+                        }
+                        ImGui::PopStyleVar();
                         if (options.mode != gauge::type::Default)
-                        {
-                            ImGui::SameLine();
-                            ImGui::TextColored({1.f, 0.5f, 0.5f, 1.f}, " *");
-                        }
-                        ImGui::SameLine(285);
-                        ImGui::SetNextItemWidth(180);
-                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0"))
-                        {
-                            options.mode = static_cast<gauge::type>(mode);
-                            gauge::update();
-                        }
+                            ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
+                                "Lamps will not save (NO PLAY), except for FULL COMBO.");
 
                         if (gauge::is_dan(options.mode))
                         {

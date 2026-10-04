@@ -103,16 +103,18 @@ versions.push_back({
     .BGA_UPDATE_FN            = base + 0x08f7ac0,
     .PLAY_ELEMENT_FIND        = base + 0x03437a0, // named-child lookup used repeatedly by frame updates and key/turntable renderers
 
-    .GAUGE_RESET              = base + 0x0975390,
-    .GAUGE_COEFFICIENTS       = base + 0x0975ec0,
-    .GAUGE_JUDGMENT           = base + 0x0974a80,
-    .GAUGE_TICK               = base + 0x0976020,
-    .GAUGE_APPLY_DELTA        = base + 0x0975d40,
-    .GAUGE_TICK_MS            = base + 0x08286a0,
-    .GAUGE_VALUES             = base + 0xb287350, // two 20-byte value/coefficient blocks
-    .GAUGE_SPECIAL_STATE      = base + 0xb282758, // two native shared gauge-info pointers
-    .GAUGE_ARTWORK            = base + 0x0903d16,
-    .GAUGE_RENDERER           = base + 0x034d000,
+    .GAUGE_RESET              = base + 0x0975390, // initializes both players' gauges for a new attempt
+    .GAUGE_DELTA_SETUP        = base + 0x0975ec0, // calculates native delta magnitudes from P1/P2 note counts
+    .GAUGE_JUDGMENT           = base + 0x0974a80, // applies a judgment to a player's gauge (player, judgment 0-5)
+    .GAUGE_TICK               = base + 0x0976020, // per-tick gauge update (playback tick index)
+    .GAUGE_APPLY_DELTA        = base + 0x0975d40, // applies a signed raw gauge delta and handles failure (player, delta)
+    .GAUGE_TICK_MS            = base + 0x08286a0, // returns the duration of one native playback tick in milliseconds
+    .GAUGE_VALUES             = base + 0xb287350, // two 20-byte blocks: raw gauge value and four native delta magnitudes
+    .GAUGE_SPECIAL_STATE      = base + 0xb282758, // two native shared gauge-info entries (16 bytes each)
+    .GAUGE_ARTWORK            = base + 0x0903d16, // artwork-selection mid-hook: ESI = player, EBP/R15 = renderer-local style
+    .GAUGE_RENDERER           = base + 0x034d000, // BM2D renderer getter; native HLS shader pointer at +98464
+    .GAUGE_RESULT_CLEAR       = base + 0x0932a60, // result/submission clear type (player); 0 = NO PLAY, 7 = FULL COMBO
+    .GAUGE_DELTA_MAGNITUDE    = base + 0x0974300, // calculates one native delta magnitude (player, kind, note count)
 
     // offsets: data
     .GAME_MODEL               = base + 0x1080d40, // the mutable copy of the ea3 model string

@@ -1,7 +1,6 @@
 #include <MinHook.h>
 #include "../log.h"
 #include "../game.h"
-#include "../features/gauge.h"
 #include "score_invalidator_hook.h"
 
 namespace iidxtra::score_invalidator_hook
@@ -24,8 +23,6 @@ namespace iidxtra::score_invalidator_hook
 			return true;
 
 		// invalidate the score if illegal 2dxtra modifiers were used
-        if (player < 2 && gauge::blocks_score(static_cast<std::uint8_t>(player)))
-            return true;
 		if ((player == 0 && is_play_invalid_p1) || (player == 1 && is_play_invalid_p2))
 			return true;
 

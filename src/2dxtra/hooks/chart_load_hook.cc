@@ -93,10 +93,6 @@ namespace iidxtra::chart_load_hook
         else if (player == 1)
             last_chart_note_count_p2 = static_cast<bm2dx::chart_buffer_t*>(output)->p2_note_count;
 
-        for (std::uint8_t side = 0; side < 2; ++side)
-            if (gauge::blocks_score(side))
-                score_invalidator_hook::invalidate(side);
-
         // If score saving is disabled at compile-time, instantly invalidate the score.
         #if BLOCK_ALL_SCORE_SAVE == 1
             score_invalidator_hook::invalidate(0);
