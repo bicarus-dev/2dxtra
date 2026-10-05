@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <vector>
 #include <imgui.h>
 #include "../chart_set.h"
 #include "loader.h"
@@ -20,8 +22,21 @@ namespace iidxtra::gui
 			if (ImGui::Selectable("Default", chart_set::active.empty(), flags))
 				chart_set::revert();
 
-			for (auto const& [name, set]: chart_set::custom)
+			std::vector<const decltype(chart_set::custom)::value_type*> sorted_sets;
+			sorted_sets.reserve(chart_set::custom.size());
+			for (auto const& entry : chart_set::custom)
+				sorted_sets.push_back(&entry);
+
+			std::sort(sorted_sets.begin(), sorted_sets.end(), [](const auto* left, const auto* right)
 			{
+				if (left->second.id != right->second.id)
+					return left->second.id < right->second.id;
+				return left->first < right->first;
+			});
+
+			for (auto const* entry : sorted_sets)
+			{
+				auto const& [name, set] = *entry;
 				if (ImGui::Selectable(name.c_str(), chart_set::active == name, flags))
 					chart_set::set_active(name);
 
