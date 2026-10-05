@@ -10,7 +10,7 @@ namespace iidxtra::custom_audio
     inline constexpr char follow_bgm[] = "*bgm";
 
     // Empty selects Default; "*" selects Random; decide also accepts follow_bgm.
-    // Otherwise store the scanned filename.
+    // Otherwise store the SD9 filename from song_select_bgm or song_select_decide.
     extern std::string select_file;
     extern std::string decide_file;
 

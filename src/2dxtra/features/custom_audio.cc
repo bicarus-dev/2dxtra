@@ -58,6 +58,10 @@ namespace iidxtra::custom_audio
         "syssd_bgm_default_l2", "syssd_bgm_default_l3"
     };
 
+    static constexpr std::array<const char*, 2> audio_directories {
+        "song_select_bgm", "song_select_decide"
+    };
+
     static SafetyHookMid play_hook;
     static SafetyHookInline gain_hook;
     static std::atomic_bool installed = false;
@@ -131,41 +135,47 @@ namespace iidxtra::custom_audio
     static auto scan(const std::filesystem::path& directory) -> void
     {
         scan_error.clear();
-        for (auto& channel : channels)
-            channel.files.clear();
-        std::error_code error;
-        std::filesystem::directory_iterator it(directory, error), end;
-        for (; !error && it != end; it.increment(error))
+        for (std::size_t i = 0; i < channels.size(); ++i)
         {
-            const auto is_file = it->is_regular_file(error);
-            if (error)
-                break;
-            if (!is_file)
-                continue;
-            const auto utf8 = it->path().filename().u8string();
-            const std::string name(utf8.begin(), utf8.end());
-            auto lower = name;
-            std::transform(lower.begin(), lower.end(), lower.begin(),
-                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (!lower.ends_with(".sd9"))
-                continue;
-            if (lower.starts_with("custom_bgm_"))
-                state(channel::music_select).files.push_back(name);
-            else if (lower.starts_with("custom_decide_"))
-                state(channel::music_decide).files.push_back(name);
+            auto& list = channels[i].files;
+            list.clear();
+            const auto folder = directory / audio_directories[i];
+            std::error_code error;
+            std::filesystem::directory_iterator it(folder, error), end;
+            for (; !error && it != end; it.increment(error))
+            {
+                const auto is_file = it->is_regular_file(error);
+                if (error)
+                    break;
+                if (!is_file)
+                    continue;
+
+                const auto utf8 = it->path().filename().u8string();
+                const std::string name(utf8.begin(), utf8.end());
+                auto lower = name;
+                std::transform(lower.begin(), lower.end(), lower.begin(),
+                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (lower.ends_with(".sd9"))
+                    list.push_back(name);
+            }
+
+            if (error || list.empty())
+            {
+                list.clear();
+                if (!scan_error.empty())
+                    scan_error += "\n";
+                scan_error += error ? "Cannot scan " + folder.string() + ": " + error.message() :
+                    "No *.sd9 files found in " + folder.string();
+            }
+            std::sort(list.begin(), list.end());
         }
-        if (error)
-        {
-            for (auto& channel : channels)
-                channel.files.clear();
-            scan_error = "Cannot scan " + directory.string() + ": " + error.message();
-            return;
-        }
-        for (auto& channel : channels)
-            std::sort(channel.files.begin(), channel.files.end());
-        if (state(channel::music_select).files.empty() || state(channel::music_decide).files.empty())
-            scan_error = "No " + std::string(state(channel::music_select).files.empty() ?
-                "custom_bgm_*.sd9" : "custom_decide_*.sd9") + " files found in " + directory.string();
+    }
+
+    static auto audio_path(channel kind, std::string_view filename) -> std::string
+    {
+        // AVS paths are rooted at contents, not the DLL's modules directory.
+        return "/2dxtra_custom/" + std::string(audio_directories[static_cast<std::size_t>(kind)]) +
+            "/" + std::string(filename);
     }
 
     static auto choose_path(channel kind) -> std::string
@@ -179,25 +189,25 @@ namespace iidxtra::custom_audio
         {
             if (select_path.empty())
                 return {};
-            // Match the full version suffix, excluding the category prefix and SD9 extension.
-            auto version = std::string_view(select_path).substr(
-                std::string_view("/2dxtra_custom/custom_bgm_").size());
+            // The two folders use matching basenames, including any version/day suffix.
+            auto version = std::string_view(select_path).substr(select_path.find_last_of('/') + 1);
             version.remove_suffix(4);
             const auto match = std::find_if(list.begin(), list.end(), [&](const std::string& file)
             {
-                auto candidate = std::string_view(file).substr(std::string_view("custom_decide_").size());
+                auto candidate = std::string_view(file);
                 candidate.remove_suffix(4);
                 return candidate == version;
             });
             if (match == list.end())
                 return {};
-            return "/2dxtra_custom/" + *match;
+            return audio_path(kind, *match);
         }
         if (filename == "*")
         {
             if (list.empty())
             {
-                fail(kind, "no matching SD9 files in 2dxtra_custom");
+                fail(kind, "no SD9 files in 2dxtra_custom/" +
+                    std::string(audio_directories[static_cast<std::size_t>(kind)]));
                 return {};
             }
             filename = list[std::uniform_int_distribution<std::size_t>(0, list.size() - 1)(random_engine)];
@@ -207,8 +217,7 @@ namespace iidxtra::custom_audio
             fail(kind, "file was not found at boot: " + std::string(filename));
             return {};
         }
-        // AVS roots relative game assets at contents, not at the DLL's modules directory.
-        return "/2dxtra_custom/" + std::string(filename);
+        return audio_path(kind, filename);
     }
 
     static auto default_layer(std::string_view name) -> int
