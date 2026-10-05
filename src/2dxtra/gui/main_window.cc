@@ -693,22 +693,24 @@ namespace iidxtra::gui::main_window
 
                 if (ImGui::CollapsingHeader("Live Timing", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                    ImGui::Text("Timing Bars");
+                    ImGui::SameLine(285);
+                    ImGui::SetNextItemWidth(180);
+                    ImGui::BeginDisabled(!live_timing::available() || live_timing::in_play());
+                    auto mode = static_cast<int>(live_timing::display_mode);
+                    if (ImGui::Combo("##TimingBarsMode", &mode, "Off\0Combined\0Split\0"))
                     {
-                        ImGui::Text("Live Timing Indicator");
-                        ImGui::SameLine(285);
-                        ImGui::BeginDisabled(!live_timing::available());
-                        if (ImGui::Checkbox("##LiveTiming", &live_timing::enabled))
-                            live_timing::update();
-                        ImGui::EndDisabled();
+                        live_timing::display_mode = static_cast<live_timing::mode>(mode);
+                        live_timing::update();
                     }
-                    ImGui::PopStyleVar();
+                    ImGui::EndDisabled();
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y - 5.0f);
                     ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
-                        "Keys and scratches; +/-200 ms rounded to whole ticks, 5-second highlights and average");
+                        "Show live timing indicator");
                     ImGui::Text("Y Position");
                     ImGui::SameLine(285);
                     ImGui::SetNextItemWidth(180);
-                    if (ImGui::SliderInt("##LiveTimingY", &live_timing::y_position, 0, live_timing::max_y))
+                    if (ImGui::SliderInt("##LiveTimingY", &live_timing::y_position, 0, live_timing::max_y_position()))
                         live_timing::update();
                     const auto button_size = ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight());
                     ImGui::BeginDisabled(live_timing::y_position <= 0);
@@ -719,7 +721,7 @@ namespace iidxtra::gui::main_window
                         live_timing::update();
                     }
                     ImGui::EndDisabled();
-                    ImGui::BeginDisabled(live_timing::y_position >= live_timing::max_y);
+                    ImGui::BeginDisabled(live_timing::y_position >= live_timing::max_y_position());
                     ImGui::SameLine(0, 5.0f);
                     if (ImGui::Button("+##LiveTimingYUp", button_size))
                     {
@@ -727,10 +729,6 @@ namespace iidxtra::gui::main_window
                         live_timing::update();
                     }
                     ImGui::EndDisabled();
-                    ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Position in 1080p coordinates");
-                    const auto status = live_timing::status();
-                    if (!status.empty())
-                        ImGui::TextWrapped("%s", status.c_str());
                 }
 
                 if (ImGui::CollapsingHeader("Result Screen", ImGuiTreeNodeFlags_DefaultOpen))

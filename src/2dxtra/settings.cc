@@ -79,7 +79,7 @@ namespace iidxtra::settings
         apply("fast_slow.milliseconds", fast_slow_display::options.show_milliseconds);
         apply("fast_slow.pgreat", fast_slow_display::options.show_pgreat);
         apply("timing_histogram.enabled", timing_histogram::enabled);
-        apply("live_timing.enabled", live_timing::enabled);
+        apply("live_timing.mode", live_timing::display_mode, 0, 2);
         apply("live_timing.y_position", live_timing::y_position, 0, live_timing::max_y);
 
         apply("autoretry.enabled", autoretry::enabled);

@@ -114,6 +114,7 @@ namespace iidxtra::fast_slow_hook
         float histogram_milliseconds = 0.0f;
         bool live_sample = false;
         int live_tick = 0;
+        bm2dx::timing_t live_note_windows {};
     };
     thread_local auto pending = pending_judgment_t {};
 
@@ -240,6 +241,12 @@ namespace iidxtra::fast_slow_hook
                         include_in_live_timing,
                         candidate.ticks
                     };
+                    if (include_in_live_timing)
+                    {
+                        const auto offset = offsetof(bm2dx::timing_data_t, timing) +
+                            player * sizeof(bm2dx::player_timing_t);
+                        pending.live_note_windows = read<bm2dx::timing_t>(context, offset);
+                    }
                 }
             }
 
@@ -267,7 +274,8 @@ namespace iidxtra::fast_slow_hook
             code != bm2dx::judge_display_code::charge_hold)
         {
             pending.live_sample = false;
-            live_timing::record_note(player, pending.live_tick, pending.histogram_milliseconds, code);
+            live_timing::record_note(player, scratch, pending.live_tick, pending.histogram_milliseconds,
+                code, pending.live_note_windows);
         }
 
         // Code 12 == keep displaying previous judge while charge note is held

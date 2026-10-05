@@ -14,7 +14,7 @@
 
 namespace iidxtra::live_timing
 {
-    bool enabled = false;
+    mode display_mode = mode::Off;
     int y_position = default_y;
 
     namespace
@@ -38,18 +38,26 @@ namespace iidxtra::live_timing
         {
             clock::time_point time;
             float milliseconds;
+            bool scratch;
+        };
+
+        struct bar_state
+        {
+            std::array<std::optional<hit>, tick_count> hits;
+            std::optional<float> average_ms;
         };
 
         struct player_state
         {
-            std::array<std::optional<hit>, tick_count> hits;
+            bar_state combined;
+            bar_state notes;
+            bar_state scratch;
             std::deque<timing_sample> recent_samples;
-            std::optional<float> average_ms;
         };
 
         std::mutex mutex;
         std::array<player_state, 2> players;
-        bool capture_enabled = false;
+        mode current_mode = mode::Off;
         bool playing = false;
         bool double_play = false;
         std::string error;
@@ -67,9 +75,10 @@ namespace iidxtra::live_timing
         {
             for (auto& player : players)
             {
-                player.hits = {};
+                player.combined = {};
+                player.notes = {};
+                player.scratch = {};
                 player.recent_samples.clear();
-                player.average_ms.reset();
             }
         }
 
@@ -113,17 +122,48 @@ namespace iidxtra::live_timing
             if (player.recent_samples.empty())
                 return;
 
-            double total = 0;
+            std::array<double, 2> totals {};
+            std::array<std::size_t, 2> counts {};
             for (const auto& sample : player.recent_samples)
-                total += sample.milliseconds;
+            {
+                const auto channel = sample.scratch ? 1 : 0;
+                totals[channel] += sample.milliseconds;
+                ++counts[channel];
+            }
 
-            player.average_ms = static_cast<float>(total / player.recent_samples.size());
+            player.combined.average_ms = static_cast<float>(
+                (totals[0] + totals[1]) / player.recent_samples.size());
+            if (counts[0] != 0)
+                player.notes.average_ms = static_cast<float>(totals[0] / counts[0]);
+            if (counts[1] != 0)
+                player.scratch.average_ms = static_cast<float>(totals[1] / counts[1]);
         }
 
-        auto record_at(int player, int tick, float milliseconds, int code, clock::time_point now) -> void
+        auto color_for_note(const bm2dx::timing_t& windows, float milliseconds) -> int
+        {
+            // Reclassify scratch timing against note windows for the combined bar.
+            if (milliseconds <= windows.early_poor || milliseconds > windows.late_bad)
+                return 4;
+            if (milliseconds <= windows.early_bad)
+                return 3;
+            if (milliseconds <= windows.early_good)
+                return 2;
+            if (milliseconds <= windows.early_great)
+                return 1;
+            if (milliseconds <= windows.late_pgreat)
+                return 0;
+            if (milliseconds <= windows.late_great)
+                return 1;
+            if (milliseconds <= windows.late_good)
+                return 2;
+            return 3;
+        }
+
+        auto record_at(int player, int tick, float milliseconds, int code, clock::time_point now,
+                       bool scratch, const bm2dx::timing_t& note_windows) -> void
         {
             const auto color = color_for_code(code);
-            if (!capture_enabled || !playing || color < 0)
+            if (current_mode == mode::Off || !playing || color < 0)
                 return;
 
             if (player < 0 || player >= 2 || tick < -tick_limit || tick > tick_limit ||
@@ -137,15 +177,24 @@ namespace iidxtra::live_timing
             const int index = tick + tick_limit;
 
             // Replacing the timestamp restarts this tick's five-second fade.
-            players[bar].hits[index] = hit {now, color};
+            auto& state = players[bar];
+            auto& channel = scratch ? state.scratch : state.notes;
+            channel.hits[index] = hit {now, color};
+            const auto combined_color = scratch ? color_for_note(note_windows, milliseconds) : color;
+            state.combined.hits[index] = hit {now, combined_color};
 
             // Unlike the tick highlights, the average counts every press, including repeats.
-            players[bar].recent_samples.push_back({now, milliseconds});
-            update_average(players[bar], now);
+            state.recent_samples.push_back({now, milliseconds, scratch});
+            update_average(state, now);
         }
     }
 
     // Settings and status
+
+    auto max_y_position() -> int
+    {
+        return display_mode == mode::Split ? max_y - bar_spacing : max_y;
+    }
 
     auto available() -> bool
     {
@@ -166,18 +215,18 @@ namespace iidxtra::live_timing
     auto update() -> void
     {
         const std::lock_guard lock(mutex);
-        y_position = std::clamp(y_position, 0, max_y);
+        y_position = std::clamp(y_position, 0, max_y_position());
 
-        // Moving the bar should not clear hits; toggling the feature should.
-        if (capture_enabled != enabled)
+        // Moving the bar preserves hits; selecting a different mode starts fresh.
+        if (current_mode != display_mode)
             clear_hits();
 
-        capture_enabled = enabled;
+        current_mode = display_mode;
     }
 
     auto reset() -> void
     {
-        enabled = false;
+        display_mode = mode::Off;
         y_position = default_y;
         update();
 
@@ -207,16 +256,23 @@ namespace iidxtra::live_timing
 
     // Timing capture
 
+    auto in_play() -> bool
+    {
+        const std::lock_guard lock(mutex);
+        return playing;
+    }
+
     auto is_recording() -> bool
     {
         const std::lock_guard lock(mutex);
-        return capture_enabled && playing;
+        return current_mode != mode::Off && playing;
     }
 
-    auto record_note(int player, int tick, float milliseconds, int display_code) -> void
+    auto record_note(int player, bool scratch, int tick, float milliseconds, int display_code,
+                     const bm2dx::timing_t& note_windows) -> void
     {
         const std::lock_guard lock(mutex);
-        record_at(player, tick, milliseconds, display_code, clock::now());
+        record_at(player, tick, milliseconds, display_code, clock::now(), scratch, note_windows);
     }
 
     // Bar layout and drawing
@@ -287,7 +343,7 @@ namespace iidxtra::live_timing
         }
 
         auto draw_tick_boxes(ImDrawList* draw, const bar_layout& layout,
-                             const player_state& player, clock::time_point now) -> void
+                             const bar_state& bar, clock::time_point now) -> void
         {
             // Draw only recent hits. Adjacent boxes share an edge, with no
             // border or gap; opacity fades from 70% to fully transparent.
@@ -297,7 +353,7 @@ namespace iidxtra::live_timing
                 if (tick < -tick_limit || tick > tick_limit)
                     continue;
 
-                const auto& sample = player.hits[tick + tick_limit];
+                const auto& sample = bar.hits[tick + tick_limit];
                 if (!sample)
                     continue;
 
@@ -311,14 +367,14 @@ namespace iidxtra::live_timing
                 const float right = (layout.left + (box + 1) * layout.box_width) *
                     layout.display_size.x / 1920.0f;
 
-                // Use the actual judgment: keys and scratches can differ at the same tick.
+                // The combined bar stores note-based colors; split bars store actual judgments.
                 const auto rgb = gui::timing_colors[sample->color] & ~IM_COL32_A_MASK;
                 const auto opacity = static_cast<ImU32>(alpha * 255) << IM_COL32_A_SHIFT;
                 draw->AddRectFilled({left, layout.top}, {right, layout.bottom}, rgb | opacity);
             }
         }
 
-        auto draw_center_marker(ImDrawList* draw, const bar_layout& layout) -> void
+        auto draw_center_marker(ImDrawList* draw, const bar_layout& layout, bool scratch = false) -> void
         {
             if (layout.first_tick > 0 || layout.last_tick < 1)
                 return;
@@ -334,17 +390,17 @@ namespace iidxtra::live_timing
             draw->AddRectFilled(
                 {center - half_width, marker_top},
                 {center + half_width, marker_bottom},
-                IM_COL32(255, 255, 255, 204));
+                scratch ? IM_COL32(255, 0, 0, 204) : IM_COL32(255, 255, 255, 204));
         }
 
         auto draw_average_arrow(ImDrawList* draw, const bar_layout& layout,
-                                const player_state& player, float tick_ms) -> void
+                                const bar_state& bar, float tick_ms) -> void
         {
-            if (!player.average_ms)
+            if (!bar.average_ms)
                 return;
 
             // Display zero is halfway between native ticks 0 and 1, like FAST/SLOW milliseconds.
-            const float centered_ms = *player.average_ms - tick_ms * 0.5f;
+            const float centered_ms = *bar.average_ms - tick_ms * 0.5f;
             const float center_boundary = 1.0f - layout.first_tick;
             const float average_boundary = center_boundary + centered_ms / tick_ms;
             const float position = layout.left + average_boundary * layout.box_width;
@@ -363,14 +419,14 @@ namespace iidxtra::live_timing
     {
         // The native in_gameplay flag can be false during DP songs.
         // Use our play-field/result lifecycle below, while still excluding attract demos.
-        if (!enabled || !available() || !bm2dx::state || bm2dx::state->game_type == 9)
+        if (display_mode == mode::Off || !available() || !bm2dx::state || bm2dx::state->game_type == 9)
             return;
 
         const auto tick_ms = reinterpret_cast<float (*)()>(bm2dx::addr->GAUGE_TICK_MS)();
         const auto now = clock::now();
         const std::lock_guard lock(mutex);
 
-        if (!capture_enabled || !playing)
+        if (current_mode == mode::Off || !playing)
             return;
 
         if (!std::isfinite(tick_ms) || tick_ms <= 0)
@@ -412,9 +468,25 @@ namespace iidxtra::live_timing
                 continue;
 
             update_average(players[player], now);
-            draw_tick_boxes(draw, *layout, players[player], now);
+            if (current_mode == mode::Combined)
+            {
+                draw_tick_boxes(draw, *layout, players[player].combined, now);
+                draw_center_marker(draw, *layout);
+                draw_average_arrow(draw, *layout, players[player].combined, tick_ms);
+                continue;
+            }
+
+            draw_tick_boxes(draw, *layout, players[player].notes, now);
             draw_center_marker(draw, *layout);
-            draw_average_arrow(draw, *layout, players[player], tick_ms);
+            draw_average_arrow(draw, *layout, players[player].notes, tick_ms);
+
+            auto scratch_layout = *layout;
+            const float offset = bar_spacing * display_size.y / 1080.0f;
+            scratch_layout.top += offset;
+            scratch_layout.bottom += offset;
+            draw_tick_boxes(draw, scratch_layout, players[player].scratch, now);
+            draw_center_marker(draw, scratch_layout, true);
+            draw_average_arrow(draw, scratch_layout, players[player].scratch, tick_ms);
         }
     }
 }
