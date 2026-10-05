@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -13,6 +14,8 @@
 #include "../database.h"
 #include "../urafumen.h"
 #include "../all_scratch.h"
+#include "../urafumen_experimental.h"
+#include "../all_scratch_experimental.h"
 #include "chart_analyze_hook.h"
 
 namespace iidxtra::chart_analyze_hook
@@ -39,7 +42,7 @@ namespace iidxtra::chart_analyze_hook
         radar_fn g_radar = nullptr;
         database::db* g_db = nullptr;
 
-        bool g_needs_build = false;
+        std::atomic_bool g_needs_build = false;
 
         // Boot debug text renderer (sub_1805E0250): (size, x, y, style, text).
         auto init_text_render_detour(int a1, int x, int y, void* style, const char* text) -> void
@@ -60,6 +63,33 @@ namespace iidxtra::chart_analyze_hook
         std::vector<std::string> g_mutated_hashes {};
         std::vector<std::vector<std::uint8_t>> g_mutated_data {};
 
+        auto convert_chart(std::uint8_t* buffer, int set, int difficulty) -> std::size_t
+        {
+            switch (set)
+            {
+                // Keep upstream routing unchanged, including its original DP behavior.
+                case 0:
+                case 1:
+                    return urafumen::convert_in_place(buffer, SCRATCH_CAPACITY, 0, set == 1);
+                case 2:
+                    return all_scratch::convert_in_place(buffer, SCRATCH_CAPACITY);
+
+                case 3:
+                case 4:
+                    if (difficulty >= 6)
+                        return urafumen_experimental::convert_dp_in_place(buffer, SCRATCH_CAPACITY, set == 4);
+                    return urafumen_experimental::convert_in_place(buffer, SCRATCH_CAPACITY, 0, set == 4);
+                case 5:
+                    if (difficulty >= 6)
+                        return all_scratch_experimental::convert_dp_in_place(buffer, SCRATCH_CAPACITY);
+                    return all_scratch_experimental::convert_in_place(buffer, SCRATCH_CAPACITY);
+
+                default:
+                    log::print("Unknown generated chart set: {}", set);
+                    return 0;
+            }
+        }
+
         auto read_after_hook(SafetyHookContext& ctx) -> void
         {
             auto const read = static_cast<std::size_t>(ctx.rax);
@@ -79,17 +109,8 @@ namespace iidxtra::chart_analyze_hook
 
             auto written = std::size_t { 0 };
             auto const rank = g_mutated_hashes.size();
-            if (g_mutate_mode == 2 && rank < g_mutate_difficulties.size())
-                written = g_mutate_difficulties[rank] >= 6
-                    ? all_scratch::convert_dp_in_place(buf, SCRATCH_CAPACITY)
-                    : all_scratch::convert_in_place(buf, SCRATCH_CAPACITY);
-            else if (g_mutate_mode != 2 && rank < g_mutate_difficulties.size())
-            {
-                written = g_mutate_difficulties[rank] >= 6
-                    ? urafumen::convert_dp_in_place(buf, SCRATCH_CAPACITY, g_mutate_mode == 1)
-                    : urafumen::convert_in_place(
-                        buf, SCRATCH_CAPACITY, /*player=*/0, g_mutate_mode == 1);
-            }
+            if (rank < g_mutate_difficulties.size())
+                written = convert_chart(buf, g_mutate_mode, g_mutate_difficulties[rank]);
 
             if (written > 0)
             {
@@ -104,6 +125,7 @@ namespace iidxtra::chart_analyze_hook
             }
             else
             {
+                log::print("Chart conversion failed (set {}, read index {}).", g_mutate_mode, rank);
                 // Conversion failed: keep a blank slot so the rank-indexed
                 // vectors stay aligned (see hash_for_diff / data_for_diff).
                 g_mutated_hashes.push_back({});
@@ -220,7 +242,7 @@ namespace iidxtra::chart_analyze_hook
                 valid_diffs.push_back({ d, rank, oh });
             }
 
-            for (int mode = 0; mode < 3; ++mode)
+            for (int mode = 0; mode < database::builtin_set_count; ++mode)
             {
                 std::vector<database::chart_row> cached(DIFF_COUNT);
                 std::vector<bool> is_cached(DIFF_COUNT, false);
@@ -242,6 +264,7 @@ namespace iidxtra::chart_analyze_hook
 
                 if (!all_cached)
                 {
+                    g_needs_build = true;
                     auto dummy_v22 = std::vector<std::uint8_t>(V22_SIZE, 0);
                     run_pass2(scratch, entry, dummy_v22.data(), flag, mode);
 
@@ -256,7 +279,7 @@ namespace iidxtra::chart_analyze_hook
 
                         auto const& mh = hash_for_diff(g_mutated_hashes, entry, di.d);
                         auto const* data = data_for_diff(g_mutated_data, entry, di.d);
-                        if (di.d >= 6 && (mh.empty() || data->empty()))
+                        if (mh.empty() || data->empty())
                             continue;
 
                         database::chart_row row;
@@ -313,12 +336,13 @@ namespace iidxtra::chart_analyze_hook
         if (!g_db)
             return;
 
-        // An empty chart cache means this boot performs the full (slow) build.
+        // Cache misses can also occur when new built-in sets are added.
         g_needs_build = database::chart_count(g_db) == 0;
-        if (g_needs_build)
-            g_init_text_hook = safetyhook::create_inline(
-                bm2dx::addr->INIT_TEXT_RENDER_FN,
-                reinterpret_cast<void*>(&init_text_render_detour));
+        g_init_text_hook = safetyhook::create_inline(
+            bm2dx::addr->INIT_TEXT_RENDER_FN,
+            reinterpret_cast<void*>(&init_text_render_detour));
+        if (!g_init_text_hook)
+            log::print("analyze: failed to hook chart-build progress text");
 
         install_analyze_hook();
         install_read_hook();

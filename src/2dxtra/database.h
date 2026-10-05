@@ -9,9 +9,11 @@
 
 namespace database
 {
+    inline constexpr int builtin_set_count = 6;
+
     struct chart_row
     {
-        int chart_set; // 0=Kiraku, 1=Kichiku
+        int chart_set; // 0-2: upstream Kiraku/Kichiku/All-Scratch; 3-5: experimental variants
         int music_id;
         int difficulty; // 0..9 (loader chart index)
         std::string hash; // sha256 of the mutated chart (also its id)

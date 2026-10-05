@@ -45,6 +45,8 @@ set(SOURCE_FILES
     src/2dxtra/settings.cc
     src/2dxtra/urafumen.cc
     src/2dxtra/all_scratch.cc
+    src/2dxtra/urafumen_experimental.cc
+    src/2dxtra/all_scratch_experimental.cc
     src/2dxtra/gui/gui.cc
     src/2dxtra/gui/loader.cc
     src/2dxtra/gui/log_window.cc

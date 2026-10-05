@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace urafumen
+namespace urafumen_experimental
 {
     using event = bm2dx::chart_event_t;
     using event_type = bm2dx::chart_event_type;
@@ -41,6 +41,7 @@ namespace urafumen
     auto parse_events_until_eos(std::span<const std::uint8_t> data) -> std::optional<std::vector<event>>;
     auto convert(std::span<const event> chart, int player, bool kichiku) -> result;
     auto convert_in_place(std::uint8_t* buffer, std::size_t capacity, int player, bool kichiku) -> std::size_t;
+    auto convert_dp_in_place(std::uint8_t* buffer, std::size_t capacity, bool kichiku) -> std::size_t;
 
     auto sha256_hex(const std::uint8_t* data, std::size_t len) -> std::string;
 }
