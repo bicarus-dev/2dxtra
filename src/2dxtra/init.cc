@@ -28,6 +28,7 @@
 #include "features/custom_audio.h"
 #include "features/gauge.h"
 #include "features/note_colors.h"
+#include "features/key_release.h"
 #include "features/unrandomizer.h"
 #include "features/play_option.h"
 #include "features/autoretry.h"
@@ -113,6 +114,7 @@ namespace iidxtra
         custom_audio::shutdown();
         gauge::shutdown();
         note_colors::shutdown();
+        key_release::shutdown();
 		score_set::uninit();
 
 		// Hooks that require extra setup.

@@ -97,6 +97,7 @@ versions.push_back({
     .GET_GAME_MODE_FN         = base + 0x09493c0, // shared game-mode getter; only the above callers receive the demo override
     .CONCENTRATION_SHOW_FN    = base + 0x09c5da0, // shows/hides the native concentration background
     .PLAY_SCENE_DRAW_FN       = base + 0x0905150, // per-frame play UI draw; subscreen state is applied before this call
+    .KEY_LIGHT_POSITION       = base + 0x0905de9, // call rsi: button-light position, R14 = display, RCX = sprite, EDX/R8D = x/y, EBX = half-width
     .SUBSCREEN_UI_SHOW_FN     = base + 0x09c5ae0, // hides/restores the normal subscreen controls and windows
 
     .PLAY_LAYER_CREATE        = base + 0x0344080, // native CLayer creation used for play frames, gauge animations and key support

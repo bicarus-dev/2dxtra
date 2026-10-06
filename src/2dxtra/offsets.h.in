@@ -107,6 +107,7 @@ struct offsets
     std::uint8_t* GET_GAME_MODE_FN = nullptr;            // shared getter; override only the above callers
     std::uint8_t* CONCENTRATION_SHOW_FN = nullptr;       // native concentration background transition
     std::uint8_t* PLAY_SCENE_DRAW_FN = nullptr;          // shared play UI update: concentration and I/O key display
+    std::uint8_t* KEY_LIGHT_POSITION = nullptr;         // button-light position call: R14 = display, RCX = sprite, EDX/R8D = x/y, EBX = half-width
     std::uint8_t* SUBSCREEN_UI_SHOW_FN = nullptr;        // hides/restores the normal subscreen controls
 
     std::uint8_t* PLAY_LAYER_CREATE;      // creates play frame layers

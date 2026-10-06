@@ -6,6 +6,7 @@
 #include "main_window.h"
 #include "timing_histogram_window.h"
 #include "../features/live_timing.h"
+#include "../features/key_release.h"
 #include "res/fonts.h"
 #include "../log.h"
 #include "../input.h"
@@ -152,6 +153,7 @@ namespace iidxtra::gui
 
 		timing_histogram_window::render();
         live_timing::render();
+        key_release::render();
         chart_speed::render_progress();
 		log_window::render();
 

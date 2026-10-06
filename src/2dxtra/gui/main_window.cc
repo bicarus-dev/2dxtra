@@ -536,7 +536,7 @@ namespace iidxtra::gui::main_window
                         ImGui::EndDisabled();
                         ImGui::PopStyleVar();
                         ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
-                            "Show held buttons and 2x I/O turntable rotation, without idle spinning");
+                            "Show in-song release duration for each button");
                     }
 
                     {

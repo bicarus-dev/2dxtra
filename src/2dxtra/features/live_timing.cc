@@ -7,6 +7,7 @@
 #include <mutex>
 #include <optional>
 #include "live_timing.h"
+#include "key_release.h"
 #include "../gui/timing_colors.h"
 #include "../hooks/fast_slow_hook.h"
 #include "../judgment.h"
@@ -240,6 +241,7 @@ namespace iidxtra::live_timing
 
     auto begin_play(bool is_dp) -> void
     {
+        key_release::set_in_song(bm2dx::state && bm2dx::state->game_type != 9);
         const std::lock_guard lock(mutex);
         clear_hits();
         double_play = is_dp;
@@ -249,6 +251,7 @@ namespace iidxtra::live_timing
 
     auto end_play() -> void
     {
+        key_release::set_in_song(false);
         const std::lock_guard lock(mutex);
         playing = false;
         clear_hits();

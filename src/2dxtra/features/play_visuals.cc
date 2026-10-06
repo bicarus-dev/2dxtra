@@ -10,6 +10,7 @@
 #include "../log.h"
 #include "../util/code_patch.h"
 #include "play_visuals.h"
+#include "key_release.h"
 
 namespace iidxtra::play_visuals
 {
@@ -38,12 +39,13 @@ namespace iidxtra::play_visuals
 
     auto io_key_display_available() -> bool
     {
-        return draw_hook_available;
+        return draw_hook_available && key_release::available();
     }
 
     auto update_io_key_display() -> void
     {
-        io_key_display_enabled = io_key_display && draw_hook_available;
+        io_key_display_enabled = io_key_display && io_key_display_available();
+        key_release::set_enabled(io_key_display_enabled.load());
     }
 
     auto capture_key_display_input(const bm2dx::input_t& input) -> void
@@ -53,6 +55,7 @@ namespace iidxtra::play_visuals
         const auto left = static_cast<std::uint64_t>(input.p1_turntable & 0xFF);
         const auto right = static_cast<std::uint64_t>(input.p2_turntable & 0xFF);
         key_display_input.store(buttons | (left << 32) | (right << 40) | (1ull << 48));
+        key_release::record_input(input.buttons_edge);
     }
 
     static auto draw_io_key_display(bm2dx::play_session_t* session) -> void
@@ -255,6 +258,7 @@ namespace iidxtra::play_visuals
     {
         // Apply layer state and title positioning before the native scene draws its UI.
         draw_concentration_movie();
+        key_release::begin_frame();
         const auto result = original_play_scene_draw_fn(context);
         draw_io_key_display(static_cast<bm2dx::play_session_t*>(context));
         return result;
@@ -262,6 +266,7 @@ namespace iidxtra::play_visuals
 
     auto install_hook() -> void
     {
+        key_release::install_hook();
         if (bm2dx::addr->PLAY_SCENE_DRAW_FN)
         {
             draw_hook_available = MH_CreateHook(bm2dx::addr->PLAY_SCENE_DRAW_FN,

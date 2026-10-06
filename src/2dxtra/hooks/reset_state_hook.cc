@@ -27,6 +27,7 @@
 #include "../features/fast_slow_display.h"
 #include "../features/timing_histogram.h"
 #include "../features/live_timing.h"
+#include "../features/key_release.h"
 #include "../features/hi_speed_reset.h"
 
 namespace iidxtra::reset_state_hook
@@ -62,6 +63,8 @@ namespace iidxtra::reset_state_hook
 
 	auto reset_state_hook_fn(std::uint32_t a1) -> void*
 	{
+        key_release::reset();
+
         timing_histogram::leave_result();
         live_timing::end_play();
         gauge::clear_session();
