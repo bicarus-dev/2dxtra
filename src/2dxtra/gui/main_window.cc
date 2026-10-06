@@ -351,7 +351,7 @@ namespace iidxtra::gui::main_window
                     ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Reduce saturation for ASSIST EASY and EASY gauges");
                 }
 
-                ImGui::BeginDisabled(!gauge::available() || gauge::in_play());
+                ImGui::BeginDisabled(!gauge::custom_available() || gauge::in_play());
                 for (std::size_t player = 0; player < gauge::players.size(); ++player)
                 {
                     ImGui::PushID(static_cast<int>(player));
@@ -363,7 +363,9 @@ namespace iidxtra::gui::main_window
                         ImGui::Text("Gauge Type");
                         ImGui::SameLine(285);
                         ImGui::SetNextItemWidth(180);
-                        if (ImGui::Combo("##GaugeType", &mode, "Default\0Dan\0Erosion\0EX Dan\0Hazard\0"))
+                        if (ImGui::Combo("##GaugeType", &mode,
+                            [](void*, int index) { return gauge::definitions[index].name; },
+                            nullptr, static_cast<int>(gauge::definitions.size())))
                         {
                             options.mode = static_cast<gauge::type>(mode);
                             gauge::update();
@@ -409,7 +411,11 @@ namespace iidxtra::gui::main_window
 
                 auto const status = gauge::status();
                 if (!status.empty())
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.5f, 0.5f, 1.f));
                     ImGui::TextWrapped("%s", status.c_str());
+                    ImGui::PopStyleColor();
+                }
                 ImGui::EndTabItem();
             }
 

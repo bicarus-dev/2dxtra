@@ -502,9 +502,9 @@ namespace iidxtra::fast_slow_hook
         const auto sprite = original_sprite_draw_fn(manager, name, horizontal, vertical, scale, layer, flags);
 
 #ifdef _MSC_VER
-        gauge::tint_sprite(sprite, _ReturnAddress());
+        gauge::on_sprite_draw(sprite, _ReturnAddress(), horizontal, vertical, layer);
 #else
-        gauge::tint_sprite(sprite, __builtin_return_address(0));
+        gauge::on_sprite_draw(sprite, __builtin_return_address(0), horizontal, vertical, layer);
 #endif
 
         if (!sprite || !name || rendering.text[0] == '\0')

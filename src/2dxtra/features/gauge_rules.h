@@ -2,11 +2,23 @@
 
 #include <array>
 #include <optional>
+#include "gauge_types.h"
 
 namespace iidxtra::gauge_rules
 {
     // Signed changes for PGREAT, GREAT, GOOD, BAD, missed POOR, and empty POOR.
     using judgment_deltas = std::array<int, 6>;
+
+    struct lr2_parameters
+    {
+        // Percentage-point changes in the same judgment order as judgment_deltas.
+        std::array<double, 6> deltas;
+        bool recovery;
+    };
+
+    // OpenLR2 single-song rules use fallback TOTAL; LR2 Dan uses fixed class-course amounts.
+    auto calculate_lr2(gauge::type mode, int notes) -> std::optional<lr2_parameters>;
+    auto lr2_value(const lr2_parameters& parameters, int judgment, double percent) -> std::optional<double>;
 
     struct erosion_calculation
     {

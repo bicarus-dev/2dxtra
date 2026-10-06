@@ -1,11 +1,12 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <safetyhook.hpp>
 #include "gauge.h"
-#include "gauge_colors.h"
+#include "gauge_render.h"
 #include "gauge_rules.h"
 #include "../log.h"
 
@@ -54,6 +55,9 @@ namespace iidxtra::gauge
             // Modified native block: P1 SP, P2 SP, or shared DP.
             unsigned block = 0;
 
+            // Native Normal/Easy/Hard option to restore.
+            int normal_gauge = 0;
+
             // Native special-gauge option to restore.
             int special = 0;
 
@@ -94,6 +98,10 @@ namespace iidxtra::gauge
             // Chart timing and periodic drain progress for Erosion.
             erosion_state erosion;
 
+            std::optional<gauge_rules::lr2_parameters> lr2;
+
+            // Fractional native units carried between LR2 judgments; 50 units = 1%.
+            double lr2_fraction = 0;
         };
 
         enum class phase { idle, playing, results };
@@ -146,12 +154,6 @@ namespace iidxtra::gauge
         // Separates active overrides from retained results.
         std::atomic<phase> current_phase = phase::idle;
 
-        // Side currently being drawn; 2 means no valid side.
-        thread_local unsigned artwork_player = 2;
-
-        // Live native artwork mode: 0 none, 1 Assist Easy, 2 Easy.
-        thread_local int artwork_easy = 0;
-
         auto remove_hooks() -> void
         {
             reset_hook.reset();
@@ -160,6 +162,7 @@ namespace iidxtra::gauge
             tick_hook.reset();
             artwork_hook.reset();
             result_clear_hook.reset();
+            gauge_render::reset();
         }
 
         auto options() -> native_options*
@@ -196,6 +199,7 @@ namespace iidxtra::gauge
                 if (previous.object && current == previous.object)
                 {
                     auto& block = current->blocks[previous.block];
+                    block.normal_gauge = previous.normal_gauge;
                     block.special = previous.special;
                     block.starting_percent = previous.starting_percent;
                 }
@@ -203,27 +207,22 @@ namespace iidxtra::gauge
             }
         }
 
-        auto active_mode(unsigned player) -> type
+        auto active_options(unsigned player) -> player_options
         {
             const std::lock_guard lock(mutex);
             if (player >= attempts.size() || current_phase == phase::idle || attempts[player].failed)
-                return type::Default;
+                return {};
 
-            return attempts[player].options.mode;
+            return attempts[player].options;
         }
 
-        auto suspend_gsm() -> bool
+        auto active_mode(unsigned player) -> type
         {
-            const auto module = GetModuleHandleW(L"2dx-gsm.dll");
-            if (!module)
-                return true;
-            const auto enabled = reinterpret_cast<bool (*)()>(GetProcAddress(module, "is_enabled"));
-            // GSM's query also restores its failure-suppression patch on entering Dan practice.
-            if (enabled && !enabled())
-                return true;
-            report("Installed 2dx-gsm did not suspend; special gauges are disabled for this play.");
-            return false;
+            return active_options(player).mode;
         }
+
+        constexpr auto gsm_warning = "Custom gauges are unavailable while 2dx-gsm.dll is loaded. "
+            "Remove GSM and restart the game to use them.";
 
         auto disable_play() -> void
         {
@@ -262,6 +261,13 @@ namespace iidxtra::gauge
                     continue;
 
                 auto& attempt = attempts[player];
+                const auto* definition = find_definition(selection[player].mode);
+                if (!definition)
+                {
+                    report("Unexpected gauge type; native gauge used.");
+                    attempt.failed = true;
+                    continue;
+                }
                 {
                     const std::lock_guard lock(mutex);
                     attempt.options = selection[player];
@@ -269,11 +275,12 @@ namespace iidxtra::gauge
 
                 const auto block_index = double_play ? 2u : player;
                 auto& block = current.blocks[block_index];
-                attempt.saved = {&current, block_index, block.special, block.starting_percent};
+                attempt.saved = {&current, block_index, block.normal_gauge, block.special, block.starting_percent};
 
-                // Native Dan practice disables GSM and enables survival-gauge handling.
-                block.special = 1;
-                block.starting_percent = 100;
+                // Use native clear/failure rules without Dan practice's shared clear-mode flag.
+                block.special = 0;
+                block.normal_gauge = static_cast<int>(definition->base);
+                block.starting_percent = definition->starting_percent;
                 if (is_dan(attempt.options.mode))
                 {
                     block.starting_percent = attempt.options.dan_start_percent;
@@ -315,11 +322,13 @@ namespace iidxtra::gauge
             const bool special = selected[0] || selected[1];
             if (special)
             {
+                const bool gsm_loaded = GetModuleHandleW(L"2dx-gsm.dll") != nullptr;
                 // Leave native courses, Hazard, Arena and demos in control of their own gauges.
                 const auto mode = state->game_type;
-                if (!current || (mode != 1 && mode != 2 && mode != 5 && mode != 6))
+                if (gsm_loaded || !current || (mode != 1 && mode != 2 && mode != 5 && mode != 6))
                 {
-                    report("Special gauges are only available in ordinary Free, Standard, Step Up and Premium Free play.");
+                    report(gsm_loaded ? gsm_warning :
+                        "Special gauges are only available in ordinary Free, Standard, Step Up and Premium Free play.");
                     const std::lock_guard lock(mutex);
                     for (unsigned player = 0; player < 2; ++player)
                         attempts[player].failed = selected[player];
@@ -327,8 +336,6 @@ namespace iidxtra::gauge
                 else
                 {
                     apply_options(*current, selected, selection, carry);
-                    if (!suspend_gsm())
-                        disable_play();
                 }
             }
             const auto result = reset_hook.call<std::intptr_t>();
@@ -343,18 +350,26 @@ namespace iidxtra::gauge
                         return reset_hook.call<std::intptr_t>();
                     }
             }
+            for (unsigned player = 0; player < 2; ++player)
+                if (active_mode(player) != type::Default)
+                {
+                    const int initial = current->blocks[double_play ? 2 : player].starting_percent * 50;
+                    // Native Normal/Easy starts at 22%; custom gauges also have their own start/KEEP.
+                    reinterpret_cast<std::intptr_t (*)(unsigned, int)>(bm2dx::addr->GAUGE_APPLY_DELTA)(
+                        player, initial - values()[player].value);
+                }
             return result;
         }
 
-        auto calculate_hazard_deltas(unsigned player, int notes) -> void
+        auto calculate_native_deltas(unsigned player, int notes, bool dan) -> void
         {
             auto& block = options()->blocks[double_play ? 2 : player];
             const auto special = block.special;
             const auto normal_gauge = block.normal_gauge;
-            block.special = 0;
+            block.special = dan ? 1 : 0;
             block.normal_gauge = 0;
 
-            // Query Normal directly, without invoking GSM's gauge simulation.
+            // Query Dan or Normal only for these amounts; restore flags before gameplay resumes.
             const auto calculate = reinterpret_cast<int (*)(unsigned, int, int)>(
                 bm2dx::addr->GAUGE_DELTA_MAGNITUDE);
             for (int kind = 0; kind < 4; ++kind)
@@ -380,9 +395,30 @@ namespace iidxtra::gauge
             {
                 const auto mode = active_mode(player);
                 auto& attempt = attempts[player];
+                if (is_lr2(mode))
+                {
+                    const auto notes = double_play ? static_cast<std::int64_t>(p1_notes) + p2_notes :
+                        static_cast<std::int64_t>(player == 0 ? p1_notes : p2_notes);
+                    attempt.lr2.reset();
+                    if (notes > 0 && notes <= std::numeric_limits<int>::max())
+                        attempt.lr2 = gauge_rules::calculate_lr2(mode, static_cast<int>(notes));
+                    if (!attempt.lr2)
+                    {
+                        report("Cannot determine LR2 chart note count; special gauges are disabled for this play.");
+                        disable_play();
+                        reset_hook.call<std::intptr_t>();
+                        return deltas_hook.call<std::intptr_t>(p1_notes, p2_notes);
+                    }
+                    continue;
+                }
                 if (mode == type::Hazard)
                 {
-                    calculate_hazard_deltas(player, player == 0 ? p1_notes : p2_notes);
+                    calculate_native_deltas(player, player == 0 ? p1_notes : p2_notes, false);
+                    continue;
+                }
+                if (mode == type::Dan)
+                {
+                    calculate_native_deltas(player, player == 0 ? p1_notes : p2_notes, true);
                     continue;
                 }
                 if (mode != type::Erosion)
@@ -428,6 +464,24 @@ namespace iidxtra::gauge
             }
 
             std::optional<int> delta;
+            if (is_lr2(mode))
+            {
+                auto& attempt = attempts[player];
+                const auto current = values()[player].value;
+                if (current <= 0)
+                    return;
+
+                const auto next = attempt.lr2 ? gauge_rules::lr2_value(
+                    *attempt.lr2, judge, (current + attempt.lr2_fraction) / 50.0) : std::nullopt;
+                if (next)
+                {
+                    const double raw = *next * 50.0;
+                    const int target = static_cast<int>(raw);
+                    apply_delta(player, target - current);
+                    attempt.lr2_fraction = values()[player].value == target ? raw - target : 0;
+                    return;
+                }
+            }
             switch (mode)
             {
                 case type::Hazard:
@@ -474,11 +528,11 @@ namespace iidxtra::gauge
 
         auto select_artwork(SafetyHookContext& ctx) -> void
         {
+            gauge_render::reset();
             const auto player = static_cast<unsigned>(ctx.rsi);
-            artwork_player = player;
-            artwork_easy = 0;
             if (player >= attempts.size())
                 return;
+            int native_gauge = 0;
             if ((ctx.rbp == 0 || ctx.rbp == 1) && bm2dx::state)
             {
                 const auto current = options();
@@ -486,22 +540,10 @@ namespace iidxtra::gauge
                 // Consult the live option after GSM's selection, not the chart's starting gauge.
                 if (current)
                 {
-                    const auto mode = current->blocks[block].normal_gauge;
-                    artwork_easy = mode == 1 || mode == 2 ? mode : 0;
+                    native_gauge = current->blocks[block].normal_gauge;
                 }
             }
-            switch (active_mode(player))
-            {
-                // Renderer-local indices select the bar, pulse and tip; gauge rules stay unchanged.
-                case type::Erosion:
-                case type::ExDan:
-                case type::Hazard:
-                    ctx.rbp = 3;
-                    ctx.r15 = 3;
-                    break;
-                default:
-                    break;
-            }
+            gauge_render::begin_draw(active_options(player), native_gauge, tint_easy_enabled.load());
         }
 
         auto result_clear(unsigned player) -> std::intptr_t
@@ -530,35 +572,25 @@ namespace iidxtra::gauge
     }
 
     auto available() -> bool { return installed.load(); }
+    auto custom_available() -> bool { return available() && !GetModuleHandleW(L"2dx-gsm.dll"); }
     auto in_play() -> bool { return current_phase == phase::playing; }
 
-    auto report_color_error(const std::string& message) -> void
+    auto report_draw_error(const std::string& message) -> void
     {
         report(message);
     }
 
-    auto tint_sprite(void* sprite, const void* caller) -> void
+    auto on_sprite_draw(void* sprite, const void* caller, int horizontal, int vertical, unsigned layer) -> void
     {
-        if (!sprite || !available() || artwork_player >= attempts.size())
+        if (!available())
             return;
-
-        const auto mode = active_mode(artwork_player);
-        if (mode == type::Default && (!artwork_easy || !tint_easy_enabled.load()))
-            return;
-
-        // The shared sprite hook also handles unrelated UI. Only tint direct gauge-renderer calls.
-        DWORD64 image_base = 0;
-        const auto function = RtlLookupFunctionEntry(reinterpret_cast<DWORD64>(caller), &image_base, nullptr);
-        const auto artwork = reinterpret_cast<DWORD64>(bm2dx::addr->GAUGE_ARTWORK);
-        if (!function || artwork < image_base + function->BeginAddress ||
-            artwork >= image_base + function->EndAddress)
-            return;
-
-        gauge_colors::apply(sprite, mode, artwork_easy == 1);
+        gauge_render::draw_sprite(sprite, caller, horizontal, vertical, layer);
     }
 
     auto status() -> std::string
     {
+        if (GetModuleHandleW(L"2dx-gsm.dll"))
+            return gsm_warning;
         const std::lock_guard lock(mutex);
         return error;
     }
@@ -575,6 +607,12 @@ namespace iidxtra::gauge
         for (unsigned player = 0; player < 2; ++player)
         {
             auto& value = players[player];
+            if (!find_definition(value.mode))
+            {
+                error = "Unexpected gauge type; native gauge selected.";
+                log::print("[Gauge] {}", error);
+                value.mode = type::Default;
+            }
             value.dan_start_percent = std::clamp(value.dan_start_percent, 2, 100) / 2 * 2;
             value.erosion_level = std::clamp(value.erosion_level, 1, 5);
             if (requested[player].mode != value.mode ||
@@ -591,6 +629,7 @@ namespace iidxtra::gauge
             return;
         restore_options();
         current_phase = phase::idle;
+        gauge_render::reset();
     }
 
     auto finish_play() -> void
@@ -662,7 +701,8 @@ namespace iidxtra::gauge
         tick_hook = safetyhook::create_inline(bm2dx::addr->GAUGE_TICK, tick);
         artwork_hook = safetyhook::create_mid(bm2dx::addr->GAUGE_ARTWORK, select_artwork);
         result_clear_hook = safetyhook::create_inline(bm2dx::addr->GAUGE_RESULT_CLEAR, result_clear);
-        if (!reset_hook || !deltas_hook || !judgment_hook || !tick_hook || !artwork_hook || !result_clear_hook)
+        if (!reset_hook || !deltas_hook || !judgment_hook || !tick_hook || !artwork_hook ||
+            !result_clear_hook)
         {
             remove_hooks();
             report("Failed to install special gauge hooks.");

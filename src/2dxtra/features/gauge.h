@@ -5,24 +5,10 @@
 #include <string>
 #include <span>
 #include "../game.h"
+#include "gauge_types.h"
 
 namespace iidxtra::gauge
 {
-    enum class type { Default, Dan, Erosion, ExDan, Hazard };
-
-    constexpr auto is_dan(type mode) -> bool
-    {
-        return mode == type::Dan || mode == type::ExDan;
-    }
-
-    struct player_options
-    {
-        type mode = type::Default;
-        int dan_start_percent = 100;
-        bool dan_keep = false;
-        int erosion_level = 1;
-    };
-
     // Session-only options, intentionally excluded from database settings.
     extern std::array<player_options, 2> players;
 
@@ -30,6 +16,7 @@ namespace iidxtra::gauge
     extern bool tint_easy;
 
     auto available() -> bool;
+    auto custom_available() -> bool;
     auto in_play() -> bool;
     auto status() -> std::string;
     auto update() -> void;
@@ -39,8 +26,9 @@ namespace iidxtra::gauge
     auto finish_play() -> void;
     auto clear_session() -> void;
     auto capture_chart(std::uint8_t player, std::span<const bm2dx::chart_event_t> events) -> void;
-    // Color the current gauge; optional Easy/Assist Easy coloring follows live GSM selections.
-    auto tint_sprite(void* sprite, const void* caller) -> void;
+    // Shared native sprite-draw callback; presentation is delegated to the gauge renderer.
+    auto on_sprite_draw(void* sprite, const void* caller, int horizontal, int vertical, unsigned layer) -> void;
+    auto report_draw_error(const std::string& message) -> void;
     auto install_hook() -> void;
     auto shutdown() -> void;
 }
