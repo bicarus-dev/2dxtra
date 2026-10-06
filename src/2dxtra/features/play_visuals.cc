@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <numbers>
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
@@ -16,6 +17,7 @@ namespace iidxtra::play_visuals
     auto no_measure_lines = false;
     auto no_bpm_gradient = false;
     auto bga_darkness = 0;
+    auto io_key_display = false;
     auto concentration_movie = false;
     auto subscreen_dim_level = 0;
 
@@ -27,7 +29,67 @@ namespace iidxtra::play_visuals
 
     static auto movie_hooks_available = false;
     static auto bga_hook_available = false;
+    static auto draw_hook_available = false;
     static std::atomic<float> bga_brightness {1.0f};
+    static std::atomic_bool io_key_display_enabled {false};
+
+    // Held buttons, two wrapping 8-bit turntable positions, and a valid-sample bit.
+    static std::atomic<std::uint64_t> key_display_input {0};
+
+    auto io_key_display_available() -> bool
+    {
+        return draw_hook_available;
+    }
+
+    auto update_io_key_display() -> void
+    {
+        io_key_display_enabled = io_key_display && draw_hook_available;
+    }
+
+    auto capture_key_display_input(const bm2dx::input_t& input) -> void
+    {
+        // Despite its legacy name, buttons_edge is the native held mask at manager +0x0C.
+        const auto buttons = std::uint64_t {input.buttons_edge};
+        const auto left = static_cast<std::uint64_t>(input.p1_turntable & 0xFF);
+        const auto right = static_cast<std::uint64_t>(input.p2_turntable & 0xFF);
+        key_display_input.store(buttons | (left << 32) | (right << 40) | (1ull << 48));
+    }
+
+    static auto draw_io_key_display(bm2dx::play_session_t* session) -> void
+    {
+        if (!io_key_display_enabled || !session || !bm2dx::state ||
+            bm2dx::state->game_type == demo_mode)
+            return;
+
+        const auto input = key_display_input.load();
+        if (!(input & (1ull << 48)))
+            return;
+
+        for (unsigned player = 0; player < 2; ++player)
+        {
+            for (unsigned key = 0; key < 7; ++key)
+            {
+                auto* light = session->key_displays[player].lights[key];
+                if (!light)
+                    continue;
+
+                const auto held = (input & (1ull << (player * 7 + key))) != 0;
+                const auto vtable = *static_cast<void***>(light);
+                reinterpret_cast<void(*)(void*, bool)>(vtable[5])(light, held);
+            }
+
+            auto* turntable = session->turntables[player].sprite;
+            if (!turntable)
+                continue;
+
+            const auto position = (input >> (32 + player * 8)) & 0xFF;
+            // Integer 2x scaling stays continuous across the I/O counter's wrap.
+            const auto angle = static_cast<float>((position * 2) & 0xFF) *
+                (2.0f * std::numbers::pi_v<float> / 256.0f);
+            const auto vtable = *static_cast<void***>(turntable);
+            reinterpret_cast<void(*)(void*, float)>(vtable[10])(turntable, angle);
+        }
+    }
 
     struct bga_context
     {
@@ -193,11 +255,24 @@ namespace iidxtra::play_visuals
     {
         // Apply layer state and title positioning before the native scene draws its UI.
         draw_concentration_movie();
-        return original_play_scene_draw_fn(context);
+        const auto result = original_play_scene_draw_fn(context);
+        draw_io_key_display(static_cast<bm2dx::play_session_t*>(context));
+        return result;
     }
 
     auto install_hook() -> void
     {
+        if (bm2dx::addr->PLAY_SCENE_DRAW_FN)
+        {
+            draw_hook_available = MH_CreateHook(bm2dx::addr->PLAY_SCENE_DRAW_FN,
+                reinterpret_cast<LPVOID>(play_scene_draw_hook_fn),
+                reinterpret_cast<LPVOID*>(&original_play_scene_draw_fn)) == MH_OK;
+            if (!draw_hook_available)
+                log::print("[Visuals] Failed to install play UI hook");
+        }
+        else
+            log::print("[Visuals] I/O key display is unavailable for this game build");
+
         if (bm2dx::addr->BGA_UPDATE_FN)
         {
             bga_hook_available = MH_CreateHook(bm2dx::addr->BGA_UPDATE_FN,
@@ -211,7 +286,7 @@ namespace iidxtra::play_visuals
         // complete subscreen feature unavailable rather than installing partial behavior.
         if (bm2dx::addr->GET_GAME_MODE_FN == nullptr ||
             bm2dx::addr->CONCENTRATION_SHOW_FN == nullptr ||
-            bm2dx::addr->PLAY_SCENE_DRAW_FN == nullptr ||
+            !draw_hook_available ||
             bm2dx::addr->SUBSCREEN_UI_SHOW_FN == nullptr ||
             bm2dx::addr->SUB_MOVIE_CLIP == nullptr ||
             bm2dx::addr->SUB_MOVIE_INIT_RETURN == nullptr ||
@@ -226,13 +301,8 @@ namespace iidxtra::play_visuals
         auto const concentration_result = MH_CreateHook(bm2dx::addr->CONCENTRATION_SHOW_FN,
             reinterpret_cast<LPVOID>(concentration_show_hook_fn),
             reinterpret_cast<LPVOID*>(&original_concentration_show_fn));
-        auto const draw_result = MH_CreateHook(bm2dx::addr->PLAY_SCENE_DRAW_FN,
-            reinterpret_cast<LPVOID>(play_scene_draw_hook_fn),
-            reinterpret_cast<LPVOID*>(&original_play_scene_draw_fn));
-
         movie_hooks_available = mode_result == MH_OK &&
-                                concentration_result == MH_OK &&
-                                draw_result == MH_OK;
+                                concentration_result == MH_OK;
 
         // The shared initialization enables hooks later; remove partial installs first.
         if (!movie_hooks_available)
@@ -241,8 +311,7 @@ namespace iidxtra::play_visuals
                 MH_RemoveHook(bm2dx::addr->GET_GAME_MODE_FN);
             if (concentration_result == MH_OK)
                 MH_RemoveHook(bm2dx::addr->CONCENTRATION_SHOW_FN);
-            if (draw_result == MH_OK)
-                MH_RemoveHook(bm2dx::addr->PLAY_SCENE_DRAW_FN);
+            log::print("[Visuals] Failed to install concentration movie hooks");
         }
     }
 
@@ -252,6 +321,7 @@ namespace iidxtra::play_visuals
         no_measure_lines = false;
         no_bpm_gradient = false;
         bga_darkness = 0;
+        io_key_display = false;
         concentration_movie = false;
         subscreen_dim_level = 0;
 
@@ -259,6 +329,7 @@ namespace iidxtra::play_visuals
         update_no_measure_lines();
         update_no_bpm_gradient();
         update_bga_darkness();
+        update_io_key_display();
         update_concentration_movie();
         update_subscreen_dim();
     }

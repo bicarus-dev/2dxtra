@@ -106,7 +106,7 @@ struct offsets
     std::uint8_t* SUB_TITLE_DRAW_RETURN = nullptr; // demo check inside the title renderer
     std::uint8_t* GET_GAME_MODE_FN = nullptr;            // shared getter; override only the above callers
     std::uint8_t* CONCENTRATION_SHOW_FN = nullptr;       // native concentration background transition
-    std::uint8_t* PLAY_SCENE_DRAW_FN = nullptr;          // per-frame update before drawing the play UI
+    std::uint8_t* PLAY_SCENE_DRAW_FN = nullptr;          // shared play UI update: concentration and I/O key display
     std::uint8_t* SUBSCREEN_UI_SHOW_FN = nullptr;        // hides/restores the normal subscreen controls
 
     std::uint8_t* PLAY_LAYER_CREATE;      // creates play frame layers

@@ -1,18 +1,24 @@
 #pragma once
 
+namespace bm2dx { struct input_t; }
+
 namespace iidxtra::play_visuals
 {
     extern bool dark_mode;
     extern bool no_measure_lines;
     extern bool no_bpm_gradient;
     extern int bga_darkness;
+    extern bool io_key_display;
 
     // Concentration presentation settings; dim levels 0..4 correspond to 0..80%.
     extern bool concentration_movie;
     extern int subscreen_dim_level;
 
-    // Installs independent BGA brightness and optional concentration-movie hooks.
+    // Installs BGA brightness, key-display and optional concentration-movie hooks.
     auto install_hook() -> void;
+    auto io_key_display_available() -> bool;
+    auto update_io_key_display() -> void;
+    auto capture_key_display_input(const bm2dx::input_t& input) -> void;
     auto concentration_movie_available() -> bool;
     auto bga_darkness_available() -> bool;
     auto update_bga_darkness() -> void;

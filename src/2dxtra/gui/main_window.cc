@@ -528,6 +528,19 @@ namespace iidxtra::gui::main_window
 
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        ImGui::Text("I/O Key Display");
+                        ImGui::SameLine(285);
+                        ImGui::BeginDisabled(!play_visuals::io_key_display_available());
+                        if (ImGui::Checkbox("##IOKeyDisplay", &play_visuals::io_key_display))
+                            play_visuals::update_io_key_display();
+                        ImGui::EndDisabled();
+                        ImGui::PopStyleVar();
+                        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
+                            "Show held buttons and 2x I/O turntable rotation, without idle spinning");
+                    }
+
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                         {
                             ImGui::Text("Scratch Side Flip");
                             ImGui::SameLine(285);

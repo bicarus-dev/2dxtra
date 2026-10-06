@@ -336,6 +336,19 @@ namespace bm2dx
 	static_assert(offsetof(play_state_t, players) == 0x10);
 	static_assert(offsetof(play_state_t, pacemaker_target) == 0xA68);
 
+    struct key_display_t
+    {
+        std::uint32_t player;
+        std::uint8_t pad_0004[4];
+        void* beams[8]; //0x0008
+        std::int32_t beam_timers[8]; //0x0048
+        void* lights[8]; //0x0068
+        std::int32_t light_timers[8]; //0x00A8
+    };
+    static_assert(sizeof(key_display_t) == 0xC8);
+    static_assert(offsetof(key_display_t, lights) == 0x68);
+    static_assert(offsetof(key_display_t, light_timers) == 0xA8);
+
     // The separate emblem sprite follows an anchor in the animated play frame.
     struct turntable_visual_t
     {
@@ -358,13 +371,15 @@ namespace bm2dx
 		std::uint32_t current_score_pb; //0x0414
 		std::uint8_t pad_0418[0x28]; //0x0418
 		pacemaker_type pacemaker_type_id; //0x0440
-		std::uint8_t pad_0441[0x62F];
+		std::uint8_t pad_0441[0x49F];
+        key_display_t key_displays[2]; //0x08E0
 		turntable_visual_t turntables[2]; //0x0A70
 	}; static_assert(offsetof(play_session_t, pacemaker_type_id) == 0x440);
 	static_assert(offsetof(play_session_t, in_gameplay) == 0x54);
 	static_assert(offsetof(play_session_t, SUB_TITLE_y) == 0x114);
     static_assert(offsetof(play_session_t, ready) == 0x88);
 	static_assert(offsetof(play_session_t, current_score_pb) == 0x414);
+    static_assert(offsetof(play_session_t, key_displays) == 0x8E0);
 	static_assert(offsetof(play_session_t, turntables) == 0xA70);
 	static_assert(sizeof(play_session_t) == 0xAC0);
 

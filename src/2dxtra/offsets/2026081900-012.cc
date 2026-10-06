@@ -90,6 +90,7 @@ versions.push_back({
     .RANDOM_SEQUENCE_DRAW_FN  = base + 0x0837b40, // native Random Sequence renderer
     .RANDOM_TICKET_DATA_FN    = base + 0x07b8380, // RandomLane::CRandomLaneTicketGameData getter
 
+    .PLAY_SCENE_DRAW_FN       = base + 0x0837f20, // updates both sides' key lights and turntable sprites
     .BGA_UPDATE_FN            = base + 0x082a890,
 
     .GAUGE_RESET              = base + 0x08a8270, // initializes both players' gauges for a new attempt

@@ -84,6 +84,7 @@ namespace iidxtra::settings
             }
 
         apply("visuals.dark_mode", play_visuals::dark_mode);
+        apply("visuals.io_key_display", play_visuals::io_key_display);
         apply("visuals.bga_darkness", play_visuals::bga_darkness, 0, 100);
         apply("visuals.no_measure_lines", play_visuals::no_measure_lines);
         apply("visuals.no_bpm_gradient", play_visuals::no_bpm_gradient);
@@ -207,6 +208,7 @@ namespace iidxtra::settings
             note_colors::update();
             live_timing::update();
             play_visuals::update_bga_darkness();
+            play_visuals::update_io_key_display();
             return;
         }
 
@@ -235,6 +237,7 @@ namespace iidxtra::settings
         note_colors::update();
         play_visuals::update_dark_mode();
         play_visuals::update_bga_darkness();
+        play_visuals::update_io_key_display();
         play_visuals::update_no_measure_lines();
         play_visuals::update_no_bpm_gradient();
         play_visuals::update_concentration_movie();

@@ -5,6 +5,7 @@
 #include "../game.h"
 #include "../input.h"
 #include "../gui/gui.h"
+#include "../features/play_visuals.h"
 #include "input_hook.h"
 
 namespace iidxtra::input_hook
@@ -37,6 +38,7 @@ namespace iidxtra::input_hook
 
 		// get the new inputs and feed them to the menu
 		auto const result = original_input_fn(a1);
+        play_visuals::capture_key_display_input(a1->data);
 
 		if (gui::visible)
 		{
