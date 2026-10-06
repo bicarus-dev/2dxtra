@@ -11,6 +11,7 @@ namespace iidxtra::live_timing
     enum class mode { Off, Combined, Split };
     extern mode display_mode;
     extern int y_position;
+    extern bool flip_left_right;
 
     auto max_y_position() -> int;
     auto available() -> bool;

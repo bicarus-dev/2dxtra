@@ -97,6 +97,7 @@ namespace iidxtra::settings
         apply("timing_histogram.enabled", timing_histogram::enabled);
         apply("live_timing.mode", live_timing::display_mode, 0, 2);
         apply("live_timing.y_position", live_timing::y_position, 0, live_timing::max_y);
+        apply("live_timing.flip_left_right", live_timing::flip_left_right);
 
         apply("autoretry.enabled", autoretry::enabled);
         apply("autoretry.target", autoretry::target, 0, 2);

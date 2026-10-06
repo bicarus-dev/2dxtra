@@ -17,6 +17,7 @@ namespace iidxtra::live_timing
 {
     mode display_mode = mode::Off;
     int y_position = default_y;
+    bool flip_left_right = false;
 
     namespace
     {
@@ -59,6 +60,7 @@ namespace iidxtra::live_timing
         std::mutex mutex;
         std::array<player_state, 2> players;
         mode current_mode = mode::Off;
+        bool current_flip = false;
         bool playing = false;
         bool double_play = false;
         std::string error;
@@ -223,12 +225,14 @@ namespace iidxtra::live_timing
             clear_hits();
 
         current_mode = display_mode;
+        current_flip = flip_left_right;
     }
 
     auto reset() -> void
     {
         display_mode = mode::Off;
         y_position = default_y;
+        flip_left_right = false;
         update();
 
         const std::lock_guard lock(mutex);
@@ -364,7 +368,7 @@ namespace iidxtra::live_timing
                 if (alpha <= 0)
                     continue;
 
-                const int box = tick - layout.first_tick;
+                const int box = current_flip ? layout.last_tick - tick : tick - layout.first_tick;
                 const float left = (layout.left + box * layout.box_width) *
                     layout.display_size.x / 1920.0f;
                 const float right = (layout.left + (box + 1) * layout.box_width) *
@@ -405,7 +409,8 @@ namespace iidxtra::live_timing
             // Display zero is halfway between native ticks 0 and 1, like FAST/SLOW milliseconds.
             const float centered_ms = *bar.average_ms - tick_ms * 0.5f;
             const float center_boundary = 1.0f - layout.first_tick;
-            const float average_boundary = center_boundary + centered_ms / tick_ms;
+            const float direction = current_flip ? -1.0f : 1.0f;
+            const float average_boundary = center_boundary + direction * centered_ms / tick_ms;
             const float position = layout.left + average_boundary * layout.box_width;
             const float x = std::clamp(position, layout.clip_left, layout.clip_right) *
                 layout.display_size.x / 1920.0f;

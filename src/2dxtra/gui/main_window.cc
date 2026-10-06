@@ -734,6 +734,21 @@ namespace iidxtra::gui::main_window
                     ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y - 5.0f);
                     ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
                         "Show live timing indicator");
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        {
+                            ImGui::Text("Flip direction");
+                            ImGui::SameLine(285);
+                            if (ImGui::Checkbox("##LiveTimingFlip", &live_timing::flip_left_right))
+                                live_timing::update();
+                        }
+                        ImGui::PopStyleVar();
+                        if (live_timing::flip_left_right)
+                            ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Currently: late -- early");
+                        else
+                            ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Currently: early -- late");
+
+                    }
                     ImGui::Text("Y Position");
                     ImGui::SameLine(285);
                     ImGui::SetNextItemWidth(180);
