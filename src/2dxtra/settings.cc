@@ -14,6 +14,7 @@
 #include "features/cn_transformer.h"
 #include "features/fast_slow_display.h"
 #include "features/gauge.h"
+#include "features/note_colors.h"
 #include "features/hi_speed_reset.h"
 #include "features/keysound_switch.h"
 #include "features/play_visuals.h"
@@ -67,6 +68,18 @@ namespace iidxtra::settings
         apply("audio.custom_select", custom_audio::select_file);
         apply("audio.custom_decide", custom_audio::decide_file);
         apply("gauge.tint_easy", gauge::tint_easy);
+        for (std::size_t player = 0; player < note_colors::players.size(); ++player)
+            for (std::size_t column = 0; column < note_colors::players[player].size(); ++column)
+            {
+                const auto prefix = "note_colors.p" + std::to_string(player + 1) +
+                    (column == 7 ? ".scratch" : ".key" + std::to_string(column + 1));
+                auto& color = note_colors::players[player][column];
+                apply(prefix + ".tint", color.tint_enabled);
+                apply(prefix + ".red", color.tint[0], 0, 1);
+                apply(prefix + ".green", color.tint[1], 0, 1);
+                apply(prefix + ".blue", color.tint[2], 0, 1);
+                apply(prefix + ".saturation", color.saturation_percent, 0, 100);
+            }
 
         apply("visuals.dark_mode", play_visuals::dark_mode);
         apply("visuals.bga_darkness", play_visuals::bga_darkness, 0, 100);
@@ -189,6 +202,7 @@ namespace iidxtra::settings
             audio_balance::update();
             custom_audio::update();
             gauge::update_tint();
+            note_colors::update();
             live_timing::update();
             play_visuals::update_bga_darkness();
             return;
@@ -216,6 +230,7 @@ namespace iidxtra::settings
         audio_balance::update();
         custom_audio::update();
         gauge::update_tint();
+        note_colors::update();
         play_visuals::update_dark_mode();
         play_visuals::update_bga_darkness();
         play_visuals::update_no_measure_lines();

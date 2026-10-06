@@ -27,6 +27,7 @@
 #include "features/audio_balance.h"
 #include "features/custom_audio.h"
 #include "features/gauge.h"
+#include "features/note_colors.h"
 #include "features/unrandomizer.h"
 #include "features/play_option.h"
 #include "features/autoretry.h"
@@ -86,6 +87,7 @@ namespace iidxtra
         audio_balance::install_hook();
         custom_audio::install_hook();
         gauge::install_hook();
+        note_colors::install_hook();
 
 		settings::init(db);
 
@@ -110,6 +112,7 @@ namespace iidxtra
         audio_balance::shutdown();
         custom_audio::shutdown();
         gauge::shutdown();
+        note_colors::shutdown();
 		score_set::uninit();
 
 		// Hooks that require extra setup.

@@ -8,6 +8,7 @@
 #include "loader.h"
 #include "main_window.h"
 #include "unrandomizer_window.h"
+#include "note_colors_window.h"
 #include "cn_transformer_window.h"
 #include "timing_modifier_window.h"
 #include "autoretry_window.h"
@@ -102,6 +103,8 @@ namespace iidxtra::gui::main_window
         // popup windows
         if (unrandomizer_window::visible)
             return unrandomizer_window::render();
+        if (note_colors_window::visible)
+            return note_colors_window::render();
         if (cn_transformer_window::visible)
             return cn_transformer_window::render();
         if (timing_modifier_window::visible)
@@ -512,6 +515,17 @@ namespace iidxtra::gui::main_window
             {
                 if (ImGui::CollapsingHeader("Play", ImGuiTreeNodeFlags_DefaultOpen))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                    {
+                        ImGui::Text("Note Colors");
+                        ImGui::SameLine(285);
+                        if (ImGui::Button("Configure##NoteColors"))
+                            note_colors_window::visible = true;
+                    }
+                    ImGui::PopStyleVar();
+                    ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
+                        "Adjust note tint and saturation for each column");
+
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
                         {

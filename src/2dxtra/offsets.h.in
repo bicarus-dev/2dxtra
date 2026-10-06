@@ -122,9 +122,15 @@ struct offsets
     std::uint8_t* GAUGE_VALUES = nullptr; // two 20-byte blocks: raw gauge value and four native delta magnitudes
     std::uint8_t* GAUGE_SPECIAL_STATE = nullptr; // two native shared gauge-info entries (16 bytes each)
     std::uint8_t* GAUGE_ARTWORK = nullptr; // artwork-selection mid-hook: ESI = player, EBP/R15 = renderer-local style
-    std::uint8_t* GAUGE_RENDERER = nullptr; // BM2D renderer getter; native HLS shader pointer at +98464
+    std::uint8_t* BM2D_RENDERER = nullptr; // BM2D renderer getter; native HLS shader pointer at +98464
     std::uint8_t* GAUGE_RESULT_CLEAR = nullptr; // result/submission clear type (player); 0 = NO PLAY, 7 = FULL COMBO
     std::uint8_t* GAUGE_DELTA_MAGNITUDE = nullptr; // calculates one native delta magnitude (player, kind, note count)
+
+    // Per-column note coloring: ordinary-note batches and CN/HCN sprites.
+    std::uint8_t* NOTE_DRAW_FN = nullptr; // draws one note/CN using player and note-column metadata
+    std::uint8_t* NOTE_BATCHES = nullptr; // getter for two 86096-byte ordinary-note batches
+    std::uint8_t* NOTE_SPRITE_CREATED = nullptr; // indexed sprite creation return: RAX = sprite
+    std::uint8_t* NOTE_BATCH_DRAW = nullptr; // renderer's inlined DrawPrimitiveUP call: RBX = batch +0x1C, RCX = device
 
     // offsets: variables
     std::uint8_t* GAME_MODEL;             // the mutable ea3 model string ("***:*:*:*:**********")

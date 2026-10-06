@@ -56,6 +56,7 @@ set(SOURCE_FILES
     src/2dxtra/gui/timing_modifier_window.cc
     src/2dxtra/gui/autoretry_window.cc
     src/2dxtra/gui/timing_histogram_window.cc
+    src/2dxtra/gui/note_colors_window.cc
     src/2dxtra/hooks/mdata_load_hook.cc
     src/2dxtra/hooks/boot_screen_hook.cc
     src/2dxtra/hooks/chart_load_hook.cc
@@ -82,6 +83,8 @@ set(SOURCE_FILES
     src/2dxtra/features/gauge.cc
     src/2dxtra/features/gauge_rules.cc
     src/2dxtra/features/gauge_colors.cc
+    src/2dxtra/features/color_filter.cc
+    src/2dxtra/features/note_colors.cc
     src/2dxtra/features/autoplay.cc
     src/2dxtra/features/regular_speed.cc
     src/2dxtra/features/chart_speed.cc

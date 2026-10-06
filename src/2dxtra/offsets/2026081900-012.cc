@@ -101,9 +101,15 @@ versions.push_back({
     .GAUGE_VALUES             = base + 0xb187310, // two 20-byte blocks: raw gauge value and four native delta magnitudes
     .GAUGE_SPECIAL_STATE      = base + 0xb182718, // two native shared gauge-info entries (16 bytes each)
     .GAUGE_ARTWORK            = base + 0x0836ae6, // artwork-selection mid-hook: ESI = player, EBP/R15 = renderer-local style
-    .GAUGE_RENDERER           = base + 0x034d000, // BM2D renderer getter; native HLS shader pointer at +98464
+    .BM2D_RENDERER            = base + 0x034d000, // BM2D renderer getter; native HLS shader pointer at +98464
     .GAUGE_RESULT_CLEAR       = base + 0x0865920, // result/submission clear type (player); 0 = NO PLAY, 7 = FULL COMBO
     .GAUGE_DELTA_MAGNITUDE    = base + 0x08a71e0, // calculates one native delta magnitude (player, kind, note count)
+
+    // Per-column note coloring: ordinary-note batches and CN/HCN sprites.
+    .NOTE_DRAW_FN             = base + 0x0756c30, // draws one note/CN using player and note-column metadata
+    .NOTE_BATCHES             = base + 0x0353050, // getter for two 86096-byte ordinary-note batches
+    .NOTE_SPRITE_CREATED      = base + 0x034b720, // indexed sprite creation return: RAX = sprite
+    .NOTE_BATCH_DRAW          = base + 0x03531cf, // renderer's inlined DrawPrimitiveUP call: RBX = batch +0x1C, RCX = device
 
     // offsets: data
     .GAME_MODEL               = base + 0x0f81d40, // the mutable copy of the ea3 model string

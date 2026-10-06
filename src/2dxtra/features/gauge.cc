@@ -650,7 +650,7 @@ namespace iidxtra::gauge
             !bm2dx::addr->GAUGE_JUDGMENT || !bm2dx::addr->GAUGE_TICK ||
             !bm2dx::addr->GAUGE_APPLY_DELTA || !bm2dx::addr->GAUGE_TICK_MS ||
             !bm2dx::addr->GAUGE_VALUES || !bm2dx::addr->GAUGE_SPECIAL_STATE ||
-            !bm2dx::addr->GAUGE_ARTWORK || !bm2dx::addr->GAUGE_RENDERER ||
+            !bm2dx::addr->GAUGE_ARTWORK || !bm2dx::addr->BM2D_RENDERER ||
             !bm2dx::addr->GAUGE_RESULT_CLEAR || !bm2dx::addr->GAUGE_DELTA_MAGNITUDE)
         {
             report("Special gauges are unavailable for this game build.");
