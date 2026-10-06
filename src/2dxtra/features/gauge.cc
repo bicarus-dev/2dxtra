@@ -55,7 +55,7 @@ namespace iidxtra::gauge
             // Modified native block: P1 SP, P2 SP, or shared DP.
             unsigned block = 0;
 
-            // Native Normal/Easy/Hard option to restore.
+            // Native gauge option to restore.
             int normal_gauge = 0;
 
             // Native special-gauge option to restore.
@@ -109,7 +109,7 @@ namespace iidxtra::gauge
         // Initializes each attempt.
         SafetyHookInline reset_hook;
 
-        // Applies Hazard deltas and erosion timing.
+        // Prepares chart-dependent judgment amounts and erosion timing.
         SafetyHookInline deltas_hook;
 
         // Applies special-gauge judgment damage/recovery.
@@ -121,7 +121,7 @@ namespace iidxtra::gauge
         // Converts special-gauge lamps to NO PLAY, except FC.
         SafetyHookInline result_clear_hook;
 
-        // Selects the native gauge artwork.
+        // Captures presentation state before native gauge drawing.
         SafetyHookMid artwork_hook;
 
         // Hook installation completed successfully.
@@ -390,7 +390,6 @@ namespace iidxtra::gauge
             // Native damage entries are positive magnitudes. read_native_deltas() expands
             // these four entries into six signed deltas for our rules without changing the ABI.
             const auto result = deltas_hook.call<std::intptr_t>(p1_notes, p2_notes);
-            const auto tick_ms = reinterpret_cast<float (*)()>(bm2dx::addr->GAUGE_TICK_MS)();
             for (unsigned player = 0; player < 2; ++player)
             {
                 const auto mode = active_mode(player);
@@ -423,6 +422,7 @@ namespace iidxtra::gauge
                 }
                 if (mode != type::Erosion)
                     continue;
+                const auto tick_ms = reinterpret_cast<float (*)()>(bm2dx::addr->GAUGE_TICK_MS)();
                 const auto notes = double_play ? static_cast<double>(p1_notes) + p2_notes :
                     static_cast<double>(player == 0 ? p1_notes : p2_notes);
                 auto& erosion = attempt.erosion;
@@ -528,10 +528,12 @@ namespace iidxtra::gauge
 
         auto select_artwork(SafetyHookContext& ctx) -> void
         {
-            gauge_render::reset();
             const auto player = static_cast<unsigned>(ctx.rsi);
             if (player >= attempts.size())
+            {
+                gauge_render::reset();
                 return;
+            }
             int native_gauge = 0;
             if ((ctx.rbp == 0 || ctx.rbp == 1) && bm2dx::state)
             {

@@ -78,11 +78,6 @@ namespace iidxtra::gauge
         }
     }
 
-    constexpr auto is_lr2_recovery(type mode) -> bool
-    {
-        return mode == type::LR2Easy || mode == type::LR2Normal;
-    }
-
     constexpr auto is_dan(type mode) -> bool
     {
         return mode == type::Dan || mode == type::ExDan || mode == type::LR2Dan;
