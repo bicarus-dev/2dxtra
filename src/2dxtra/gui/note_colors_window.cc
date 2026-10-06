@@ -12,6 +12,13 @@ namespace iidxtra::gui::note_colors_window
             return;
 
         ImGui::PushID(player);
+        ImGui::Text("Apply colors to key beam");
+        ImGui::SameLine(350);
+        ImGui::BeginDisabled(!note_colors::beams_available());
+        if (ImGui::Checkbox("##ApplyNoteColorsToBeam", &note_colors::apply_to_beams[player]))
+            note_colors::update();
+        ImGui::EndDisabled();
+
         ImGui::TextDisabled("Tint replaces the color; original texture shading and opacity are preserved.");
         ImGui::BeginDisabled(!note_colors::available());
         if (ImGui::BeginTable("Columns", 4, ImGuiTableFlags_SizingFixedFit))
@@ -64,6 +71,7 @@ namespace iidxtra::gui::note_colors_window
         if (ImGui::Button("Reset this side"))
         {
             note_colors::players[player] = {};
+            note_colors::apply_to_beams[player] = false;
             note_colors::update();
         }
         ImGui::SameLine();

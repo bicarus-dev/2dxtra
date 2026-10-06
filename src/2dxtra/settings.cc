@@ -68,6 +68,8 @@ namespace iidxtra::settings
         apply("audio.custom_select", custom_audio::select_file);
         apply("audio.custom_decide", custom_audio::decide_file);
         apply("gauge.tint_easy", gauge::tint_easy);
+        apply("note_colors.p1.apply_to_beams", note_colors::apply_to_beams[0]);
+        apply("note_colors.p2.apply_to_beams", note_colors::apply_to_beams[1]);
         for (std::size_t player = 0; player < note_colors::players.size(); ++player)
             for (std::size_t column = 0; column < note_colors::players[player].size(); ++column)
             {

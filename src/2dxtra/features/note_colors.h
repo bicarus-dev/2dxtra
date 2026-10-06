@@ -15,7 +15,13 @@ namespace iidxtra::note_colors
     // P1/left and P2/right, each ordered keys 1-7 then scratch.
     extern std::array<std::array<column_options, 8>, 2> players;
 
+    // Independent beam-color opt-in for P1/left and P2/right.
+    extern std::array<bool, 2> apply_to_beams;
+
     auto available() -> bool;
+    auto beams_available() -> bool;
+    // Called by the existing beam-renderer hook for its per-player layer block.
+    auto update_beams(void* renderer) -> void;
     auto status() -> std::string;
     auto update() -> void;
     auto copy_to_other_player(int player) -> void;

@@ -1,5 +1,6 @@
 #include <safetyhook.hpp>
 #include "autoplay.h"
+#include "note_colors.h"
 #include "../game.h"
 #include "../hooks/score_invalidator_hook.h"
 
@@ -81,7 +82,15 @@ namespace iidxtra::autoplay
             // rcx is the renderer's per-player block; its first dword is the
             // player index the rest of the routine indexes everything with.
             if (ctx.rcx)
+            {
                 lane_beam_player = *reinterpret_cast<std::uint32_t*>(ctx.rcx);
+                note_colors::update_beams(reinterpret_cast<void*>(ctx.rcx));
+            }
         });
 	}
+
+    auto beam_hook_available() -> bool
+    {
+        return static_cast<bool>(lane_beam_player_hook);
+    }
 }

@@ -3,17 +3,20 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <d3d9.h>
 #include <safetyhook.hpp>
 #include "note_colors.h"
 #include "color_filter.h"
+#include "autoplay.h"
 #include "../game.h"
 #include "../log.h"
 
 namespace iidxtra::note_colors
 {
     std::array<std::array<column_options, 8>, 2> players;
+    std::array<bool, 2> apply_to_beams {};
 
     namespace
     {
@@ -43,6 +46,37 @@ namespace iidxtra::note_colors
             bool customized = false;
         };
 
+        struct beam_renderer
+        {
+            unsigned player;
+            std::byte padding[4];
+            void* layers[8];
+        };
+        static_assert(offsetof(beam_renderer, layers) == 8);
+
+        // Native BM2D filter descriptor at object +552, shared by sprites and layers.
+        struct native_filter
+        {
+            std::uint32_t unused;
+            std::uint32_t flags;
+            float hls[4];
+            void* begin;
+            void* end;
+            const void* data;
+        };
+        static_assert(sizeof(native_filter) == 48);
+
+        struct beam_filter
+        {
+            // Beam objects belong to the native fixed layer pool; ID detects reuse.
+            void* layer = nullptr;
+            std::uint32_t id = 0;
+            native_filter original {};
+
+            // Stable callback data, updated only by the render hook.
+            color_filter::parameters color {};
+        };
+
         SafetyHookInline draw_hook;
         SafetyHookMid sprite_hook;
         SafetyHookMid batch_hook;
@@ -51,7 +85,9 @@ namespace iidxtra::note_colors
         // Settings are converted on the UI thread, then copied by the render thread.
         std::mutex mutex;
         std::array<std::array<column_filters, 8>, 2> requested_filters;
+        std::array<bool, 2> requested_beams {};
         std::string error;
+        std::array<std::array<beam_filter, 8>, 2> beam_filters;
 
         // Native sprites retain these pointers until their queued draw is executed.
         thread_local std::array<std::array<column_filters, 8>, 2> render_filters;
@@ -70,6 +106,41 @@ namespace iidxtra::note_colors
 
             error = message;
             log::print("[Note Colors] {}", message);
+        }
+
+        auto layer_id(void* layer) -> std::uint32_t
+        {
+            std::uint32_t id;
+            std::memcpy(&id, static_cast<std::byte*>(layer) + 8, sizeof(id));
+            return id;
+        }
+
+        auto layer_filter(void* layer) -> native_filter
+        {
+            native_filter filter;
+            std::memcpy(&filter, static_cast<std::byte*>(layer) + 552, sizeof(filter));
+            return filter;
+        }
+
+        auto owns_filter(const beam_filter& beam) -> bool
+        {
+            if (!beam.layer || layer_id(beam.layer) != beam.id)
+                return false;
+            const auto current = layer_filter(beam.layer);
+            return current.flags == 0x10000 && current.data == &beam.color;
+        }
+
+        auto restore_beam(beam_filter& beam) -> void
+        {
+            // Never overwrite a recycled layer or a filter installed by another owner.
+            if (owns_filter(beam))
+            {
+                std::memcpy(static_cast<std::byte*>(beam.layer) + 552, &beam.original, sizeof(beam.original));
+                const auto vtable = *static_cast<void***>(beam.layer);
+                using set_filter_fn = std::intptr_t (*)(void*, std::uint32_t);
+                reinterpret_cast<set_filter_fn>(vtable[33])(beam.layer, beam.original.flags);
+            }
+            beam = {};
         }
 
         auto make_filter(const column_options& options) -> color_filter::parameters
@@ -226,9 +297,59 @@ namespace iidxtra::note_colors
 
     auto available() -> bool { return installed.load(); }
 
+    auto beams_available() -> bool
+    {
+        return available() && autoplay::beam_hook_available();
+    }
+
+    auto update_beams(void* renderer) -> void
+    {
+        if (!available() || !renderer)
+            return;
+
+        const auto& native = *static_cast<const beam_renderer*>(renderer);
+        if (native.player >= players.size())
+        {
+            report("Unexpected beam player; native beam colors used.");
+            return;
+        }
+
+        std::array<column_filters, 8> colors;
+        bool enabled;
+        {
+            const std::lock_guard lock(mutex);
+            colors = requested_filters[native.player];
+            enabled = requested_beams[native.player];
+        }
+        enabled = enabled && bm2dx::state && bm2dx::state->game_type != 9;
+
+        for (unsigned column = 0; column < colors.size(); ++column)
+        {
+            auto& beam = beam_filters[native.player][column];
+            auto* layer = native.layers[column];
+            if (!enabled || !colors[column].customized || !layer || layer_id(layer) == 0)
+            {
+                restore_beam(beam);
+                continue;
+            }
+
+            if (beam.layer != layer || !owns_filter(beam))
+            {
+                restore_beam(beam);
+                beam.layer = layer;
+                beam.id = layer_id(layer);
+                beam.original = layer_filter(layer);
+            }
+            beam.color = colors[column].sprite;
+            color_filter::apply(layer, &beam.color);
+        }
+    }
+
     auto status() -> std::string
     {
         const std::lock_guard lock(mutex);
+        if ((apply_to_beams[0] || apply_to_beams[1]) && !beams_available())
+            return "Key beam coloring is unavailable for this game build.";
         return error;
     }
 
@@ -263,6 +384,7 @@ namespace iidxtra::note_colors
             }
         }
 
+        requested_beams = apply_to_beams;
         error.clear();
     }
 
@@ -287,6 +409,7 @@ namespace iidxtra::note_colors
     auto reset() -> void
     {
         players = {};
+        apply_to_beams = {};
         update();
     }
 
@@ -296,6 +419,9 @@ namespace iidxtra::note_colors
         draw_hook.reset();
         sprite_hook.reset();
         batch_hook.reset();
+        for (auto& side : beam_filters)
+            for (auto& beam : side)
+                restore_beam(beam);
     }
 
     auto install_hook() -> void
