@@ -1,11 +1,10 @@
 #include <MinHook.h>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <numbers>
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
+#include <safetyhook.hpp>
 #include "../game.h"
 #include "../log.h"
 #include "../util/code_patch.h"
@@ -111,7 +110,7 @@ namespace iidxtra::play_visuals
     // Only change the normal subscreen UI when entering or leaving concentration.
     static auto subscreen_ui_hidden = false;
 
-    static auto original_game_mode_fn = static_cast<std::uint32_t(*)()>(nullptr);
+    static std::array<SafetyHookMid, 4> movie_mode_hooks;
     static auto original_concentration_show_fn = static_cast<void(*)(void*, bool)>(nullptr);
     static auto original_play_scene_draw_fn = static_cast<std::intptr_t(*)(void*)>(nullptr);
     static auto original_bga_update_fn = static_cast<std::intptr_t(*)(bga_context*)>(nullptr);
@@ -173,29 +172,17 @@ namespace iidxtra::play_visuals
         subscreen_brightness = 1.0f - static_cast<float>(subscreen_dim_level) * 0.2f;
     }
 
-    static auto game_mode_hook_fn() -> std::uint32_t
+    static auto movie_init_mode_hook(SafetyHookContext& ctx) -> void
     {
-#ifdef _MSC_VER
-        auto const caller = _ReturnAddress();
-#else
-        auto const caller = __builtin_return_address(0);
-#endif
+        // Create the movie layer before play, even if concentration starts later.
         if (movie_enabled)
-        {
-            // Create the demo movie layer before play, even if concentration starts later.
-            if (caller == bm2dx::addr->SUB_MOVIE_INIT_RETURN)
-                return demo_mode;
+            ctx.rax = demo_mode;
+    }
 
-            // Only the subscreen movie and title checks should see demo mode.
-            // Other callers include gameplay logic and main-screen movie positioning.
-            if (show_concentration_movie() &&
-                (caller == bm2dx::addr->SUB_MOVIE_DRAW_RETURN ||
-                 caller == bm2dx::addr->SUB_TITLE_CALL_RETURN ||
-                 caller == bm2dx::addr->SUB_TITLE_DRAW_RETURN))
-                return demo_mode;
-        }
-
-        return original_game_mode_fn();
+    static auto movie_draw_mode_hook(SafetyHookContext& ctx) -> void
+    {
+        if (show_concentration_movie())
+            ctx.rax = demo_mode;
     }
 
     static auto concentration_show_hook_fn(void* context, bool visible) -> void
@@ -221,7 +208,7 @@ namespace iidxtra::play_visuals
 
         // The game creates and destroys this layer between songs; never cache it.
         auto const clip = *reinterpret_cast<void**>(bm2dx::addr->SUB_MOVIE_CLIP);
-        auto const native_mode = original_game_mode_fn();
+        auto const native_mode = reinterpret_cast<std::uint32_t(*)()>(bm2dx::addr->GET_GAME_MODE_FN)();
         if (clip != nullptr)
         {
             auto const active = show_concentration_movie();
@@ -300,20 +287,23 @@ namespace iidxtra::play_visuals
             bm2dx::addr->SUB_TITLE_DRAW_RETURN == nullptr)
             return;
 
-        auto const mode_result = MH_CreateHook(bm2dx::addr->GET_GAME_MODE_FN,
-            reinterpret_cast<LPVOID>(game_mode_hook_fn),
-            reinterpret_cast<LPVOID*>(&original_game_mode_fn));
+        // Fervidex decodes the getter's original instructions to locate game state.
+        // Override only the four subscreen callers, leaving the shared getter intact.
+        const std::array sites {bm2dx::addr->SUB_MOVIE_INIT_RETURN, bm2dx::addr->SUB_MOVIE_DRAW_RETURN,
+            bm2dx::addr->SUB_TITLE_CALL_RETURN, bm2dx::addr->SUB_TITLE_DRAW_RETURN};
+        for (std::size_t i = 0; i < sites.size(); ++i)
+            movie_mode_hooks[i] = safetyhook::create_mid(sites[i], i == 0 ? movie_init_mode_hook : movie_draw_mode_hook);
         auto const concentration_result = MH_CreateHook(bm2dx::addr->CONCENTRATION_SHOW_FN,
             reinterpret_cast<LPVOID>(concentration_show_hook_fn),
             reinterpret_cast<LPVOID*>(&original_concentration_show_fn));
-        movie_hooks_available = mode_result == MH_OK &&
+        movie_hooks_available = std::ranges::all_of(movie_mode_hooks, [](const auto& hook) { return bool(hook); }) &&
                                 concentration_result == MH_OK;
 
         // The shared initialization enables hooks later; remove partial installs first.
         if (!movie_hooks_available)
         {
-            if (mode_result == MH_OK)
-                MH_RemoveHook(bm2dx::addr->GET_GAME_MODE_FN);
+            for (auto& hook : movie_mode_hooks)
+                hook.reset();
             if (concentration_result == MH_OK)
                 MH_RemoveHook(bm2dx::addr->CONCENTRATION_SHOW_FN);
             log::print("[Visuals] Failed to install concentration movie hooks");

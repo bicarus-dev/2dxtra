@@ -94,7 +94,7 @@ versions.push_back({
     .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
     .SUB_TITLE_CALL_RETURN    = base + 0x0905361, // return from mode getter before calling the subscreen title renderer
     .SUB_TITLE_DRAW_RETURN    = base + 0x0a4aff3, // return from mode getter at the title renderer's own demo check
-    .GET_GAME_MODE_FN         = base + 0x09493c0, // shared game-mode getter; only the above callers receive the demo override
+    .GET_GAME_MODE_FN         = base + 0x09493c0, // read-only shared getter; preserve original instructions for other plugins
     .CONCENTRATION_SHOW_FN    = base + 0x09c5da0, // shows/hides the native concentration background
     .PLAY_SCENE_DRAW_FN       = base + 0x0905150, // per-frame play UI draw; subscreen state is applied before this call
     .KEY_LIGHT_POSITION       = base + 0x0905de9, // call rsi: button-light position, R14 = display, RCX = sprite, EDX/R8D = x/y, EBX = half-width
