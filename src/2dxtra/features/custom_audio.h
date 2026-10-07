@@ -11,6 +11,7 @@ namespace iidxtra::custom_audio
 
     // Empty selects Default; "*" selects Random; decide also accepts follow_bgm.
     // Otherwise store the SD9 filename from song_select_bgm or song_select_decide.
+    // Scan contents\2dxtra_custom relative to bm2dx.dll and map that exact folder for native playback.
     extern std::string select_file;
     extern std::string decide_file;
 

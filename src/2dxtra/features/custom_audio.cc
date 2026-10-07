@@ -9,8 +9,10 @@
 #include <optional>
 #include <random>
 #include <string_view>
+#include <system_error>
 #include <safetyhook.hpp>
 #include "../game.h"
+#include "../log.h"
 #include "custom_audio.h"
 
 namespace iidxtra::custom_audio
@@ -70,6 +72,11 @@ namespace iidxtra::custom_audio
     static std::mutex mutex;
     static std::array<channel_state, 2> channels;
     static std::string scan_error;
+    static constexpr char audio_mount[] = "/2dxtra_custom_audio";
+    static std::filesystem::path audio_directory;
+    static bool mounted = false;
+    static int (*fs_mount)(const char*, const char*, const char*, void*) = nullptr;
+    static int (*fs_unmount)(const char*) = nullptr;
     static void* sound_manager = nullptr;
     static std::string select_path;
     static std::optional<unsigned> default_sample;
@@ -95,9 +102,7 @@ namespace iidxtra::custom_audio
         const std::lock_guard lock(mutex);
         if (const auto error = allocation_error.load())
             return error;
-        if (!scan_error.empty())
-            return scan_error;
-        std::string result;
+        std::string result = scan_error;
         for (const auto& channel : channels)
         {
             if (!channel.error.empty())
@@ -108,7 +113,10 @@ namespace iidxtra::custom_audio
 
     static auto fail(channel kind, const std::string& message) -> void
     {
-        state(kind).error = (kind == channel::music_select ? "Music select: " : "Music decide: ") + message;
+        const auto error = (kind == channel::music_select ? "Music select: " : "Music decide: ") + message;
+        if (state(kind).error != error)
+            log::print("[Custom Audio] {}", error);
+        state(kind).error = error;
     }
 
     auto update() -> void
@@ -132,31 +140,42 @@ namespace iidxtra::custom_audio
         update();
     }
 
-    static auto scan(const std::filesystem::path& directory) -> void
+    static auto audio_path(channel kind, std::string_view filename) -> std::string
+    {
+        return std::string(audio_mount) + "/" + audio_directories[static_cast<std::size_t>(kind)] +
+            "/" + std::string(filename);
+    }
+
+    static auto path_text(const std::filesystem::path& path) -> std::string
+    {
+        const auto utf8 = path.u8string();
+        return {utf8.begin(), utf8.end()};
+    }
+
+    static auto scan() -> void
     {
         scan_error.clear();
         for (std::size_t i = 0; i < channels.size(); ++i)
         {
             auto& list = channels[i].files;
             list.clear();
-            const auto folder = directory / audio_directories[i];
+            const auto folder = audio_directory / audio_directories[i];
             std::error_code error;
             std::filesystem::directory_iterator it(folder, error), end;
             for (; !error && it != end; it.increment(error))
             {
-                const auto is_file = it->is_regular_file(error);
+                const bool regular = it->is_regular_file(error);
                 if (error)
                     break;
-                if (!is_file)
+                if (!regular)
                     continue;
-
-                const auto utf8 = it->path().filename().u8string();
-                const std::string name(utf8.begin(), utf8.end());
+                const auto name = path_text(it->path().filename());
                 auto lower = name;
                 std::transform(lower.begin(), lower.end(), lower.begin(),
                     [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                if (lower.ends_with(".sd9"))
-                    list.push_back(name);
+                if (!lower.ends_with(".sd9"))
+                    continue;
+                list.push_back(name);
             }
 
             if (error || list.empty())
@@ -164,18 +183,13 @@ namespace iidxtra::custom_audio
                 list.clear();
                 if (!scan_error.empty())
                     scan_error += "\n";
-                scan_error += error ? "Cannot scan " + folder.string() + ": " + error.message() :
-                    "No *.sd9 files found in " + folder.string();
+                scan_error += error ? "Cannot scan " + path_text(folder) + ": " + error.message() :
+                    "No *.sd9 files found in " + path_text(folder);
             }
             std::sort(list.begin(), list.end());
         }
-    }
-
-    static auto audio_path(channel kind, std::string_view filename) -> std::string
-    {
-        // AVS paths are rooted at contents, not the DLL's modules directory.
-        return "/2dxtra_custom/" + std::string(audio_directories[static_cast<std::size_t>(kind)]) +
-            "/" + std::string(filename);
+        if (!scan_error.empty())
+            log::print("[Custom Audio] {}", scan_error);
     }
 
     static auto choose_path(channel kind) -> std::string
@@ -214,7 +228,9 @@ namespace iidxtra::custom_audio
         }
         else if (std::find(list.begin(), list.end(), filename) == list.end())
         {
-            fail(kind, "file was not found at boot: " + std::string(filename));
+            fail(kind, "file was not found during the scan: " +
+                path_text(audio_directory / audio_directories[static_cast<std::size_t>(kind)] /
+                    std::filesystem::u8path(filename)));
             return {};
         }
         return audio_path(kind, filename);
@@ -266,13 +282,77 @@ namespace iidxtra::custom_audio
             voice_call<void>(current->voice, voice_method::stop);
     }
 
+    struct windows_file
+    {
+        HANDLE handle;
+        ~windows_file() { if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); }
+    };
+
+    static auto describe_load_failure(const std::string& path) -> std::string
+    {
+        auto message = "Native SD9 load failed: " + path + ".";
+        if (!path.starts_with(audio_mount))
+            return message + " See the game's Sound log for details.";
+
+        const auto relative = std::string_view(path).substr(sizeof(audio_mount));
+        const auto physical = (audio_directory / std::filesystem::u8path(relative)).make_preferred();
+        message += " Windows file: " + path_text(physical) + ". ";
+        const windows_file source {CreateFileW(physical.c_str(), GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)};
+        if (source.handle == INVALID_HANDLE_VALUE)
+        {
+            const auto code = GetLastError();
+            return message + fmt::format("Windows cannot open it: {} (error {}).",
+                std::system_category().message(static_cast<int>(code)), code);
+        }
+        LARGE_INTEGER size {};
+        if (!GetFileSizeEx(source.handle, &size))
+        {
+            const auto code = GetLastError();
+            return message + fmt::format("Cannot determine file size: {} (Windows error {}).",
+                std::system_category().message(static_cast<int>(code)), code);
+        }
+        message += fmt::format("Size: {} bytes. ", size.QuadPart);
+        std::array<std::uint8_t, 4> header {};
+        DWORD read = 0;
+        if (!ReadFile(source.handle, header.data(), static_cast<DWORD>(header.size()), &read, nullptr))
+        {
+            const auto code = GetLastError();
+            return message + fmt::format("Windows cannot read its header: {} (error {}).",
+                std::system_category().message(static_cast<int>(code)), code);
+        }
+        if (read < header.size())
+            return message + "File is empty or truncated (fewer than 4 header bytes).";
+        return message + fmt::format("Windows can read the header ({:02X} {:02X} {:02X} {:02X}), "
+            "but the native loader rejected the file. Check the game's Sound log for the cause. "
+            "Try an ASCII-only folder/filename if it contains non-ASCII characters.",
+            header[0], header[1], header[2], header[3]);
+    }
+
     static auto reload(unsigned sample, const std::string& path, channel kind) -> bool
     {
         const auto current = slot(sample);
         if (!current)
         {
-            fail(kind, "native sound cache is unavailable");
+            fail(kind, fmt::format("Native sound cache slot {} is unavailable while loading {}", sample, path));
             return false;
+        }
+        if (path.starts_with(audio_mount) && !mounted)
+        {
+            // Extended local paths avoid the launcher's D:/E:/F: arcade-drive remapping.
+            auto source = audio_directory.wstring();
+            if (!source.starts_with(L"\\\\?\\"))
+                source = L"\\\\?\\" + source;
+            const auto mount_source = path_text(std::filesystem::path(source));
+            const auto result = fs_mount(audio_mount, mount_source.c_str(), "fs", nullptr);
+            if (result < 0)
+            {
+                fail(kind, fmt::format("Cannot map {} to {} (AVS code {:#010x}).",
+                    path_text(audio_directory), audio_mount, static_cast<std::uint32_t>(result)));
+                return false;
+            }
+            mounted = true;
         }
         const auto had_voice = current->voice != nullptr;
         const auto gain = had_voice ? voice_call<float>(current->voice, voice_method::get_gain) : 1.0f;
@@ -282,7 +362,12 @@ namespace iidxtra::custom_audio
         using load_fn = bool (*)(void*, unsigned, const char*);
         if (!reinterpret_cast<load_fn>(bm2dx::addr->CUSTOM_AUDIO_LOAD)(sound_manager, sample, path.c_str()))
         {
-            fail(kind, "native SD9 load failed: " + path);
+            fail(kind, describe_load_failure(path));
+            return false;
+        }
+        if (!current->voice)
+        {
+            fail(kind, fmt::format("Native SD9 loader returned no playback voice for {} (slot {}).", path, sample));
             return false;
         }
         if (had_voice)
@@ -458,21 +543,48 @@ namespace iidxtra::custom_audio
         restore(channel::music_select);
         restore(channel::music_decide);
         select_path.clear();
+        if (mounted)
+        {
+            const auto result = fs_unmount(audio_mount);
+            if (result < 0)
+                log::print("[Custom Audio] Cannot unmount {} (AVS code {:#010x})", audio_mount,
+                    static_cast<std::uint32_t>(result));
+            else
+                mounted = false;
+        }
     }
 
     auto install_hook() -> void
     {
+        scan_error.clear();
         std::array<wchar_t, 32768> module_path {};
         const auto module = GetModuleHandleW(L"bm2dx.dll");
         const auto length = module ? GetModuleFileNameW(module, module_path.data(),
             static_cast<DWORD>(module_path.size())) : 0;
         if (!length || length >= module_path.size())
         {
-            scan_error = "Cannot locate bm2dx.dll for the custom audio scan";
+            scan_error = "Cannot locate bm2dx.dll for the custom audio directory";
+            log::print("[Custom Audio] {}", scan_error);
             return;
         }
-        const auto contents = std::filesystem::path(module_path.data()).parent_path().parent_path();
-        scan(contents / L"2dxtra_custom");
+        audio_directory = std::filesystem::path(module_path.data()).parent_path().parent_path() / L"2dxtra_custom";
+        scan();
+        // AVS 2.17.4/2.17.6 exports used by both supported game builds.
+        const auto avs = GetModuleHandleW(L"avs2-core.dll");
+        if (!avs)
+        {
+            scan_error = "Cannot locate avs2-core.dll for custom audio";
+            log::print("[Custom Audio] {}", scan_error);
+            return;
+        }
+        fs_mount = reinterpret_cast<decltype(fs_mount)>(GetProcAddress(avs, "XCgsqzn000004b"));
+        fs_unmount = reinterpret_cast<decltype(fs_unmount)>(GetProcAddress(avs, "XCgsqzn000004c"));
+        if (!fs_mount || !fs_unmount)
+        {
+            scan_error = "Custom audio requires the AVS mount API for supported IIDX 33 builds";
+            log::print("[Custom Audio] {}", scan_error);
+            return;
+        }
         const auto& a = *bm2dx::addr;
         if (!a.CUSTOM_AUDIO_START || !a.CUSTOM_AUDIO_LAYER_GAIN || !a.CUSTOM_AUDIO_LOAD ||
             !a.CUSTOM_AUDIO_NAMES || !a.GET_SOUND_ENTRY_FN)
