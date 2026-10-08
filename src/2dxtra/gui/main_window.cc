@@ -50,6 +50,45 @@ namespace iidxtra::gui::main_window
         return normalize_rate(modified / 20.0f);
     }
 
+    static auto volume_control(const char* label, const char* id, int& percent, int maximum) -> void
+    {
+        ImGui::PushID(id);
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(285);
+        const auto button_size = ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight());
+        ImGui::SetNextItemWidth(180 - 2 * (button_size.x + 5));
+        auto changed = ImGui::SliderInt("##Volume", &percent, 0, maximum, "%d%%");
+
+        ImGui::SameLine(0, 5.0f);
+        ImGui::BeginDisabled(percent <= 0);
+        if (ImGui::Button("-##VolumeDown", button_size))
+        {
+            --percent;
+            changed = true;
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine(0, 5.0f);
+        ImGui::BeginDisabled(percent >= maximum);
+        if (ImGui::Button("+##VolumeUp", button_size))
+        {
+            ++percent;
+            changed = true;
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Reset"))
+        {
+            percent = 100;
+            changed = true;
+        }
+        if (changed)
+        {
+            percent = std::clamp(percent, 0, maximum);
+            audio_balance::update();
+        }
+        ImGui::PopID();
+    }
+
     static auto custom_audio_combo(const char* label, custom_audio::channel channel,
                                   std::string& selection) -> void
     {
@@ -424,55 +463,12 @@ namespace iidxtra::gui::main_window
                 if (ImGui::CollapsingHeader("Live volume", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     ImGui::BeginDisabled(!audio_balance::available());
-                    ImGui::Text("Global volume");
-                    ImGui::SameLine(285);
-                    ImGui::SetNextItemWidth(180);
-                    if (ImGui::SliderInt("##GlobalVolume", &audio_balance::global_percent,
-                                         0, audio_balance::global_max_percent, "%d%%"))
-                    {
-                        audio_balance::global_percent =
-                            std::clamp(audio_balance::global_percent, 0, audio_balance::global_max_percent);
-                        audio_balance::update();
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Reset##GlobalVolume"))
-                    {
-                        audio_balance::global_percent = 100;
-                        audio_balance::update();
-                    }
-                    ImGui::Text("Keysounds");
-                    ImGui::SameLine(285);
-                    ImGui::SetNextItemWidth(180);
-                    if (ImGui::SliderInt("##KeysoundVolume", &audio_balance::keysound_percent,
-                                         0, audio_balance::max_percent, "%d%%"))
-                    {
-                        audio_balance::keysound_percent =
-                            std::clamp(audio_balance::keysound_percent, 0, audio_balance::max_percent);
-                        audio_balance::update();
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Reset##KeysoundVolume"))
-                    {
-                        audio_balance::keysound_percent = 100;
-                        audio_balance::update();
-                    }
-
-                    ImGui::Text("Background music");
-                    ImGui::SameLine(285);
-                    ImGui::SetNextItemWidth(180);
-                    if (ImGui::SliderInt("##BgmVolume", &audio_balance::bgm_percent,
-                                         0, audio_balance::max_percent, "%d%%"))
-                    {
-                        audio_balance::bgm_percent =
-                            std::clamp(audio_balance::bgm_percent, 0, audio_balance::max_percent);
-                        audio_balance::update();
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Reset##BgmVolume"))
-                    {
-                        audio_balance::bgm_percent = 100;
-                        audio_balance::update();
-                    }
+                    volume_control("Global volume", "GlobalVolume", audio_balance::global_percent,
+                        audio_balance::global_max_percent);
+                    volume_control("Keysounds", "KeysoundVolume", audio_balance::keysound_percent,
+                        audio_balance::max_percent);
+                    volume_control("Background music", "BgmVolume", audio_balance::bgm_percent,
+                        audio_balance::max_percent);
                     ImGui::EndDisabled();
 
                     if (!audio_balance::available())
