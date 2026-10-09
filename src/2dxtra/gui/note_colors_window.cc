@@ -52,12 +52,30 @@ namespace iidxtra::gui::note_colors_window
                 ImGui::EndDisabled();
 
                 ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth(150);
-                if (ImGui::SliderInt("##Saturation", &options.saturation_percent, 0, 100, "%d%%"))
+                const auto button_size = ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight());
+                ImGui::SetNextItemWidth(150 - 2 * (button_size.x + 5));
+                auto changed = ImGui::SliderInt("##Saturation", &options.saturation_percent, 0, 100, "%d%%");
+                ImGui::SameLine(0, 5.0f);
+                ImGui::BeginDisabled(options.saturation_percent <= 0);
+                if (ImGui::Button("-##SaturationDown", button_size))
+                {
+                    --options.saturation_percent;
+                    changed = true;
+                }
+                ImGui::EndDisabled();
+                ImGui::SameLine(0, 5.0f);
+                ImGui::BeginDisabled(options.saturation_percent >= 100);
+                if (ImGui::Button("+##SaturationUp", button_size))
+                {
+                    ++options.saturation_percent;
+                    changed = true;
+                }
+                ImGui::EndDisabled();
+                if (changed)
                     note_colors::update();
 
                 ImGui::TableNextColumn();
-                if (ImGui::Button("Reset"))
+                if (ImGui::Button("Reset##ColumnColors"))
                 {
                     options = {};
                     note_colors::update();
