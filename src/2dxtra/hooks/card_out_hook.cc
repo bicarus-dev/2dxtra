@@ -1,7 +1,5 @@
 #include "../game.h"
 #include "../chart_set.h"
-#include "../features/gauge.h"
-#include "../features/live_timing.h"
 #include "../util/scoped_page_permissions.h"
 #include "card_out_hook.h"
 
@@ -13,8 +11,6 @@ namespace iidxtra::card_out_hook
 
 	auto card_out_hook_fn(CCardOutScene* thisptr) -> void*
 	{
-        gauge::clear_session();
-        live_timing::end_play();
 		// switch back to default scores before we card out, this is just to correct our DJ points
         // reset_state_hook will also call this in case the user test menus out
 		chart_set::revert();
