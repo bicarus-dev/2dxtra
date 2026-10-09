@@ -24,6 +24,7 @@
 #include "hooks/fast_slow_hook.h"
 #include "hooks/attract_randomizer_hook.h"
 #include "features/autoplay.h"
+#include "features/long_note.h"
 #include "features/audio_balance.h"
 #include "features/custom_audio.h"
 #include "features/gauge.h"
@@ -89,6 +90,7 @@ namespace iidxtra
         custom_audio::install_hook();
         gauge::install_hook();
         note_colors::install_hook();
+        long_note::install_hook();
 
 		settings::init(db);
 
@@ -115,6 +117,7 @@ namespace iidxtra
         gauge::shutdown();
         note_colors::shutdown();
         key_release::shutdown();
+        long_note::shutdown();
 		score_set::uninit();
 
 		// Hooks that require extra setup.

@@ -72,6 +72,12 @@ versions.push_back({
     .JUDGE_DISPLAY_INIT_FN    = base + 0x0909d10, // initializes judgment display state and judge_great_yellow sprites
     .JUDGE_PRESS_RETURN       = base + 0x0821ce1, // return after general timing judgment call; continuation pattern [pattern]
     .JUDGE_RELEASE_RETURN     = base + 0x0820c8a, // return after CN release timing judgment call; continuation pattern [pattern]
+    .CN_RELEASE_INPUT_RETURN  = base + 0x0820b10, // test al, al; r13=context, r15=player, rsi=lane
+    .CN_RELEASE_TIMING_RETURN = base + 0x0820b8d, // mov edi, eax; add eax, -2
+    .CN_HEAD_TIMING_RETURN    = base + 0x0821bbf, // rdi=context, r14=player, rbp=lane, eax=grade
+    .CHART_NOTE_COUNT_SETUP   = base + 0x08269a3, // test si, si; r15=event type, r13=chart player
+    .CN_END_SPRITE_RETURN     = base + 0x0911a99, // normal CN/backspin tail sprite
+    .BSS_END_SPRITE_RETURN    = base + 0x09118bb, // linked backspin tail sprite
     .HI_SPEED_RESET_PATCH     = base + 0x090a253, // xor byte ptr [rsi+28h], 1; native double-START branch
     .HI_SPEED_RESET_CONTINUE  = base + 0x090a36a, // mov rcx, rsi; call lane/green-number predicate
     .HI_SPEED_ADJUST_CALL     = base + 0x090b926, // call 0x90bc70; RCX = controller, 5 bytes

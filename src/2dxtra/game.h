@@ -124,11 +124,30 @@ namespace bm2dx
         std::int32_t visible; //0x0018
         std::int32_t offset; //0x001C
         std::uint8_t pad_0020[12]; //0x0020
-        std::int32_t end_offset; //0x002C for CNs
-        std::uint8_t pad_0030[20]; //0x0030
-        std::int32_t hcn; //0x0044
-        std::uint8_t pad_0048[8]; //0x0048
+        std::uint8_t pad_002C[8]; //0x002C native CN flags and tail render offset
+        std::int32_t cn_duration; //0x0034 native playback ticks; zero for non-CNs/Legacy
+        std::uint8_t pad_0038[16]; //0x0038
+        std::int32_t hcn; //0x0048
+        std::uint8_t pad_004C[4]; //0x004C
+
+        auto is_charge_note() const -> bool
+        {
+            return (type == 0 || type == 5 || type == 6) && cn_duration > 0;
+        }
     }; static_assert(sizeof(play_note_t) == 0x50);
+    static_assert(offsetof(play_note_t, cn_duration) == 0x34);
+    static_assert(offsetof(play_note_t, hcn) == 0x48);
+
+    // The judgment context starts with eight candidates per side; ticks are relative to the head or held tail.
+    struct judge_candidate_t
+    {
+        float milliseconds;
+        std::int32_t ticks;
+        const play_note_t* note;
+    };
+    static_assert(sizeof(judge_candidate_t) == 16);
+    static_assert(offsetof(judge_candidate_t, ticks) == 4);
+    static_assert(offsetof(judge_candidate_t, note) == 8);
 
     struct play_notes_t
     {

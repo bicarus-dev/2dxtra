@@ -89,6 +89,7 @@ set(SOURCE_FILES
     src/2dxtra/features/regular_speed.cc
     src/2dxtra/features/chart_speed.cc
     src/2dxtra/features/cn_override.cc
+    src/2dxtra/features/long_note.cc
     src/2dxtra/features/chart_loader.cc
     src/2dxtra/features/unrandomizer.cc
     src/2dxtra/features/play_option.cc

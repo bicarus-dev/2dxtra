@@ -13,11 +13,12 @@
 #include "../features/gauge.h"
 #include "../features/timing_histogram.h"
 #include "../features/live_timing.h"
+#include "../features/long_note.h"
 #include "fast_slow_hook.h"
 
 namespace iidxtra::fast_slow_hook
 {
-    // Customize FAST/SLOW indicators without changing the game's judgments:
+    // Capture native judgments for FAST/SLOW; LN resolves its deferred head grade before application.
     //
     // 1. judge_apply_hook_fn captures the millisecond timing value.
     // 2. judge_display_hook_fn updates our stored timing to match the game's judgment.
@@ -28,21 +29,6 @@ namespace iidxtra::fast_slow_hook
 
     using fast_slow_display::polarity;
     using fast_slow_display::timing_t;
-
-    // Native candidate record; the judgment context starts with eight records per player.
-    struct judge_apply_hook_context_t
-    {
-        // timing value in milliseconds
-        float milliseconds;
-        // Tick value for judge; negative is early, positive is late
-        // with default timing windows, PGREATS are [0, 1] on 60Hz LDJ, [-1, 2] on TDJ
-        std::int32_t ticks;
-        // pointer to in-game note; used to check if judgement is valid (has note)
-        void* note;
-    };
-    static_assert(sizeof(judge_apply_hook_context_t) == 16);
-    static_assert(offsetof(judge_apply_hook_context_t, ticks) == 4);
-    static_assert(offsetof(judge_apply_hook_context_t, note) == 8);
 
     // context object passed to judge_display_hook_fn.
     struct alignas(8) judge_display_hook_context_t
@@ -203,12 +189,20 @@ namespace iidxtra::fast_slow_hook
             const bool valid_note = player >= 0 && player < 2 && lane >= 0 && lane < 8;
             const bool is_press = caller == addresses.JUDGE_PRESS_RETURN;
             const bool is_release = caller == addresses.JUDGE_RELEASE_RETURN;
+            const auto judgment = long_note::process_judgment(context, player, grade, lane, score_index,
+                is_press, is_release);
+            if (judgment.suppress)
+            {
+                pending = saved_pending;
+                return 0;
+            }
+            const bool head_timing = is_press || judgment.head.has_value();
 
             if (capture_enabled && valid_note && (is_press || is_release))
             {
                 // read the candidate judgment context for this lane and player
-                const auto candidate = read<judge_apply_hook_context_t>(
-                    context, sizeof(judge_apply_hook_context_t) * (lane + 8 * player));
+                const auto candidate = judgment.head ? *judgment.head : read<bm2dx::judge_candidate_t>(
+                    context, sizeof(bm2dx::judge_candidate_t) * (lane + 8 * player));
                 if (candidate.note)
                 {
                     const bool is_scratch = lane == 7;
@@ -218,16 +212,16 @@ namespace iidxtra::fast_slow_hook
                     // the game engine would normally display SLOW for this and generate +250ms
                     // as a placeholder but showing that ms value would be misleading; therefore
                     // we do a special case for this (show "poor")
-                    const bool excessive_poor = is_press &&
-                        grade == bm2dx::judge_grade::late_poor &&
+                    const bool excessive_poor = head_timing &&
+                        judgment.grade == bm2dx::judge_grade::late_poor &&
                         read<std::uint8_t>(candidate.note, 24) == 0;
 
-                    const bool include_in_histogram = is_press &&
-                        grade >= bm2dx::judge_grade::early_good &&
-                        grade <= bm2dx::judge_grade::late_good;
-                    const bool include_in_live_timing = is_press &&
-                        grade >= bm2dx::judge_grade::early_bad &&
-                        grade <= bm2dx::judge_grade::late_bad &&
+                    const bool include_in_histogram = head_timing &&
+                        judgment.grade >= bm2dx::judge_grade::early_good &&
+                        judgment.grade <= bm2dx::judge_grade::late_good;
+                    const bool include_in_live_timing = head_timing &&
+                        judgment.grade >= bm2dx::judge_grade::early_bad &&
+                        judgment.grade <= bm2dx::judge_grade::late_bad &&
                         std::isfinite(candidate.milliseconds);
                     pending =
                     {
@@ -251,7 +245,7 @@ namespace iidxtra::fast_slow_hook
             }
 
             // call into the original judgment apply function
-            const auto result = original_judge_apply_fn(context, player, grade, lane, score_index);
+            const auto result = original_judge_apply_fn(context, player, judgment.grade, lane, judgment.measure);
             pending = saved_pending;
             return result;
         }

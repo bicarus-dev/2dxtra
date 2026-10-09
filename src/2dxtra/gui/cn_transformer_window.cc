@@ -2,7 +2,9 @@
 #include <sstream>
 #include <imgui.h>
 #include "../input.h"
+#include "../chart_set.h"
 #include "../features/cn_override.h"
+#include "../features/long_note.h"
 #include "../features/cn_transformer.h"
 #include "cn_transformer_window.h"
 
@@ -26,18 +28,23 @@ namespace iidxtra::gui::cn_transformer_window
         {
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
             {
-                const char* names[] = {"Use Chart Default", "Charge Note", "Hell Charge Note"};
+                const char* names[] = {"Use Chart Default", "Charge Note", "Hell Charge Note", "LN (LR2)"};
 
                 ImGui::Text("Charge Note Type");
                 ImGui::SameLine();
                 ImGui::TextColored({1.f, 0.5f, 0.5f, 1.f}, " *");
                 ImGui::SameLine(300);
                 ImGui::SetNextItemWidth(150);
-                if (ImGui::SliderInt("##CNType", &override_type, 0, 2, names[override_type]))
+                ImGui::BeginDisabled(!chart_set::switch_enabled);
+                if (ImGui::SliderInt("##CNType", &override_type, cn_override::ChartDefault, cn_override::LN,
+                    names[override_type], ImGuiSliderFlags_AlwaysClamp))
                     cn_override::update(player);
+                ImGui::EndDisabled();
             }
             ImGui::PopStyleVar();
             ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Forces charts to use either CNs or HCNs");
+            if (override_type == cn_override::LN && !long_note::available())
+                ImGui::TextColored({1.f, .5f, .5f, 1.f}, "LN is unavailable for this game build.");
         }
 
         ImGui::Separator();

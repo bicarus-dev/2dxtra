@@ -81,6 +81,12 @@ struct offsets
     std::uint8_t* JUDGE_DISPLAY_INIT_FN;    // initialises one player's judgment display state
     std::uint8_t* JUDGE_PRESS_RETURN;       // return address of general timing calculation
     std::uint8_t* JUDGE_RELEASE_RETURN;     // return address of CN release timing calculation
+    std::uint8_t* CN_RELEASE_INPUT_RETURN = nullptr;  // held predicate result inside CN release handling
+    std::uint8_t* CN_RELEASE_TIMING_RETURN = nullptr; // timing classifier result before CN release forgiveness
+    std::uint8_t* CN_HEAD_TIMING_RETURN = nullptr;    // timing classifier result before CN head processing
+    std::uint8_t* CHART_NOTE_COUNT_SETUP = nullptr;   // local CN duration used by the chart statistics pass
+    std::uint8_t* CN_END_SPRITE_RETURN = nullptr;     // return from CN end-marker sprite creation
+    std::uint8_t* BSS_END_SPRITE_RETURN = nullptr;    // return from linked backspin end-marker sprite creation
     std::uint8_t* HI_SPEED_RESET_PATCH;     // double-START cover XOR; RSI = lane-cover controller
     std::uint8_t* HI_SPEED_RESET_CONTINUE;  // shared lane/green-number recomputation after toggle
     std::uint8_t* HI_SPEED_ADJUST_CALL;     // CALL to START+turntable adjustment; RCX = controller

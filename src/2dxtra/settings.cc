@@ -106,8 +106,8 @@ namespace iidxtra::settings
         apply("autoplay.p1", autoplay::enabled_p1);
         apply("autoplay.p2", autoplay::enabled_p2);
 
-        apply("cn_override.p1", cn_override::p1_override_type, 0, 2);
-        apply("cn_override.p2", cn_override::p2_override_type, 0, 2);
+        apply("cn_override.p1", cn_override::p1_override_type, cn_override::ChartDefault, cn_override::LN);
+        apply("cn_override.p2", cn_override::p2_override_type, cn_override::ChartDefault, cn_override::LN);
         apply("cn.enabled.p1", cn_transformer::enabled_p1);
         apply("cn.enabled.p2", cn_transformer::enabled_p2);
         apply("cn.percentage.p1", cn_transformer::long_note_percentage_p1, 5, 100);

@@ -10,6 +10,7 @@
 #include "note_colors.h"
 #include "color_filter.h"
 #include "autoplay.h"
+#include "long_note.h"
 #include "../game.h"
 #include "../log.h"
 
@@ -97,6 +98,7 @@ namespace iidxtra::note_colors
 
         // Only sprite creation within the current note draw receives this filter.
         thread_local const color_filter::parameters* current_filter = nullptr;
+        thread_local bool current_ln = false;
 
         auto report(const std::string& message) -> void
         {
@@ -183,11 +185,20 @@ namespace iidxtra::note_colors
 
         auto color_sprite(SafetyHookContext& ctx) -> void
         {
-            if (!current_filter || !ctx.rax)
+            if (!ctx.rax)
                 return;
 
+            if (current_ln)
+            {
+                // The sprite wrapper saves RBX and reserves 0x50 bytes before this site.
+                const std::uint8_t* caller;
+                std::memcpy(&caller, reinterpret_cast<const void*>(ctx.rsp + 0x58), sizeof(caller));
+                if (caller == bm2dx::addr->CN_END_SPRITE_RETURN || caller == bm2dx::addr->BSS_END_SPRITE_RETURN)
+                    ctx.xmm6.f32[0] = 0; // Native wrapper applies this alpha after sprite creation.
+            }
             // Later CN/HCN setup changes clipping and blending, not the custom filter.
-            color_filter::apply(reinterpret_cast<void*>(ctx.rax), current_filter);
+            if (current_filter)
+                color_filter::apply(reinterpret_cast<void*>(ctx.rax), current_filter);
         }
 
         auto draw_note(void* renderer, int player, std::uint8_t style, int tick,
@@ -215,9 +226,11 @@ namespace iidxtra::note_colors
             struct context_scope
             {
                 const color_filter::parameters* previous;
-                ~context_scope() { current_filter = previous; }
-            } scope {current_filter};
+                bool previous_ln;
+                ~context_scope() { current_filter = previous; current_ln = previous_ln; }
+            } scope {current_filter, current_ln};
             current_filter = customized ? &color.sprite : nullptr;
+            current_ln = long_note::enabled(player) && reinterpret_cast<const bm2dx::play_note_t*>(note)->is_charge_note();
 
             auto& batch = batches()[player];
             const auto first = batch.count;
