@@ -47,6 +47,10 @@ namespace
     auto constexpr KICHIKU_CHORD_CAP = 5;
     auto constexpr KIRAKU_SCRATCH_MARGIN_MS = 600;
     auto constexpr KICHIKU_SCRATCH_MARGIN_MS = 400;
+    auto constexpr HAND_ACTIVITY_WINDOW_MS = 200;
+    auto constexpr OCCUPIED_KEY_WEIGHT = 4;
+    auto constexpr NEARBY_HEAD_WEIGHT = 1;
+    auto constexpr MAX_HOLD_DURATION_MS = std::numeric_limits<std::uint16_t>::max();
 
     auto constexpr HIGH_KEY_FIRST_PRIORITY = std::array { 6, 4, 2, 0, 5, 1, 3 };
     auto constexpr LOW_KEY_FIRST_PRIORITY = std::array { 0, 2, 4, 6, 1, 5, 3 };
@@ -158,22 +162,74 @@ namespace
         return 0;
     }
 
+    struct hand_activity
+    {
+        std::array<int, DP_SIDE_COUNT> occupied {};
+        std::array<int, DP_SIDE_COUNT> nearby {};
+
+        auto workload(const int side) const -> int
+        {
+            return occupied[side] * OCCUPIED_KEY_WEIGHT + nearby[side] * NEARBY_HEAD_WEIGHT;
+        }
+    };
+
+    auto hand_activity_at_tick(const std::vector<placement_candidate>& candidates,
+        const int index) -> hand_activity
+    {
+        hand_activity activity;
+        std::array<bool, DP_KEY_COUNT> occupied {};
+        const auto offset = static_cast<std::int64_t>(candidates[index].offset);
+        const auto begin = std::lower_bound(candidates.begin(), candidates.end(), offset - MAX_HOLD_DURATION_MS,
+            [](const placement_candidate& note, std::int64_t time) { return note.offset < time; });
+        for (auto it = begin; it != candidates.end() && it->offset <= offset + HAND_ACTIVITY_WINDOW_MS; ++it)
+        {
+            if (it->lane_plus_one == 0)
+                continue;
+            const int lane = it->lane_plus_one - 1;
+            const int side = lane / PLAYABLE_LANE_COUNT;
+            // A tail still occupies its key at the release timestamp. Count each key once.
+            if (it->offset <= offset && offset <= static_cast<std::int64_t>(it->offset) + it->freeze_length)
+            {
+                if (!occupied[lane])
+                {
+                    occupied[lane] = true;
+                    ++activity.occupied[side];
+                }
+            }
+            else if (it->offset >= offset - HAND_ACTIVITY_WINDOW_MS)
+                ++activity.nearby[side];
+        }
+        return activity;
+    }
+
     auto notes_per_hand_at_tick(const std::vector<placement_candidate>& candidates,
         const int index) -> std::array<int, DP_SIDE_COUNT>
     {
-        auto counts = std::array<int, DP_SIDE_COUNT> {};
-        auto const offset = candidates[index].offset;
-        auto begin = index;
-        while (begin > 0 && candidates[begin - 1].offset == offset)
-            --begin;
-        for (auto scan = begin; scan < static_cast<int>(candidates.size()) &&
-            candidates[scan].offset == offset; ++scan)
-        {
-            auto const lane_plus_one = candidates[scan].lane_plus_one;
-            if (lane_plus_one != 0)
-                ++counts[(lane_plus_one - 1) / PLAYABLE_LANE_COUNT];
-        }
-        return counts;
+        return hand_activity_at_tick(candidates, index).occupied;
+    }
+
+    struct hand_workload
+    {
+        std::int64_t total = 0;
+        int occurrences = 0;
+    };
+
+    auto prefer_less_busy_hand(std::array<int, DP_KEY_COUNT + 1>& lane_accepts,
+        const std::array<hand_workload, DP_SIDE_COUNT>& workloads) -> void
+    {
+        if (workloads[0].occurrences == 0 || workloads[1].occurrences == 0)
+            return;
+        // Compare averages, so a hand is not penalized merely for accepting more occurrences.
+        const auto left = workloads[0].total * workloads[1].occurrences;
+        const auto right = workloads[1].total * workloads[0].occurrences;
+        if (left == right)
+            return;
+        const int preferred = left < right ? 0 : 1;
+        const auto first = lane_accepts.begin() + preferred * PLAYABLE_LANE_COUNT;
+        if (std::none_of(first, first + PLAYABLE_LANE_COUNT, [](int accepts) { return accepts > 0; }))
+            return;
+        const auto other = lane_accepts.begin() + (1 - preferred) * PLAYABLE_LANE_COUNT;
+        std::fill(other, other + PLAYABLE_LANE_COUNT, 0);
     }
 
     template<std::size_t KeyCount>
@@ -392,7 +448,8 @@ namespace
         const std::uint16_t entry_value, const int entry_occurrences,
         const int threshold, const generation_settings& settings, lane_frame<KeyCount>& frame,
         std::array<std::uint8_t, KeyCount + 1>& lane_density,
-        std::array<int, KeyCount + 1>& lane_accepts, const int candidate_start = 0) -> bool
+        std::array<int, KeyCount + 1>& lane_accepts, const int candidate_start = 0,
+        std::array<hand_workload, DP_SIDE_COUNT>* workloads = nullptr) -> bool
     {
         auto remaining = entry_occurrences;
 
@@ -411,15 +468,16 @@ namespace
 
             auto const record_offset = rec.offset;
 
-            auto chord_counts = std::array<int, DP_SIDE_COUNT> {};
+            hand_activity activity;
+            std::array<bool, DP_SIDE_COUNT> eligible {};
             if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
-                chord_counts = notes_per_hand_at_tick(candidates, index);
+                activity = hand_activity_at_tick(candidates, index);
 
             for (auto lane = 0; lane < static_cast<int>(KeyCount); ++lane)
             {
                 if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
                     if (rec.scratch_blocks(lane) ||
-                        chord_counts[lane / PLAYABLE_LANE_COUNT] >= settings.chord_cap)
+                        activity.occupied[lane / PLAYABLE_LANE_COUNT] >= settings.chord_cap)
                         continue;
 
                 auto const free_from = frame.lane_free_from(lane);
@@ -444,7 +502,20 @@ namespace
                     lane_accepts[lane] += 1;
                     frame.set_lane_free_from(lane, record_offset);
                     frame.set_lane_sample(lane, entry_value);
+                    if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                        eligible[lane / PLAYABLE_LANE_COUNT] = true;
                 }
+            }
+
+            if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+            {
+                if (workloads)
+                    for (int side = 0; side < DP_SIDE_COUNT; ++side)
+                        if (eligible[side])
+                        {
+                            (*workloads)[side].total += activity.workload(side);
+                            ++(*workloads)[side].occurrences;
+                        }
             }
 
             remaining -= 1;
@@ -573,15 +644,18 @@ namespace
             auto frame = lane_frame<KeyCount> {};
             auto lane_density = std::array<std::uint8_t, KeyCount + 1> {};
             auto lane_accepts = std::array<int, KeyCount + 1> {};
+            std::array<hand_workload, DP_SIDE_COUNT> workloads {};
 
             auto const capped = score_lanes_for_sample(candidates, count,
                 entry_value, entry_occurrences, threshold, settings, frame,
-                lane_density, lane_accepts, candidate_start);
+                lane_density, lane_accepts, candidate_start, &workloads);
 
             if (capped)
                 continue;
 
             favour_unused_lanes(lane_accepts, last_placed_lane_plus_one);
+            if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
+                prefer_less_busy_hand(lane_accepts, workloads);
 
             auto const lane_plus_one = pick_target_lane(lane_priority, lane_accepts);
 

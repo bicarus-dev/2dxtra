@@ -55,8 +55,8 @@ namespace database
         constexpr char kSeedChartSets[] =
             "INSERT OR IGNORE INTO chart_set (id, name)"
             " VALUES (0, 'Kiraku'), (1, 'Kichiku'), (2, 'All-Scratch'),"
-            " (3, 'Kiraku (experimental)'), (4, 'Kichiku (experimental)'),"
-            " (5, 'All-Scratch (experimental)');";
+            " (3, 'Kiraku (experimental v0.2)'), (4, 'Kichiku (experimental v0.2)'),"
+            " (5, 'All-Scratch (experimental v0.2)');";
 
         constexpr char kPragma[] =
             "PRAGMA journal_mode=WAL;"
