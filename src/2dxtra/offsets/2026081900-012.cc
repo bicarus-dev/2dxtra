@@ -44,7 +44,7 @@ versions.push_back({
     .AUTO_BEAM_PATCH          = base + 0x0838c8b, // cmp autoplay flag in the lane beam renderer
     .AUTO_BEAM_FN             = base + 0x0838a30, // lane beam renderer; rcx -> per-player block whose first dword is the player index
     .CARD_OUT_VFUNC           = base + 0x0ca8890, // CCardOutScene vftable slot 0
-    .RENDERER_PATCH           = base + 0x04f90d2, // call nop'd to freeze rendering while the vtable is swapped
+    .RENDERER_PRESENT_FN      = base + 0x08ab230, // shared presentation routine after frame rendering
     .APPLY_RANDOM_FN          = base + 0x07564b0, // prologue pattern [pattern]
     .DARK_MODE_PATCH          = base + 0x0835428, // short `je` over the black frame tint assignment, patched to two NOPs
     .MEASURE_PATCH            = base + 0x0756cf9, // branch over the measure bar draw, forced unconditional

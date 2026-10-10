@@ -53,7 +53,7 @@ struct offsets
     std::uint8_t* AUTO_BEAM_PATCH;          // autoplay gate in the lane beam renderer
     std::uint8_t* AUTO_BEAM_FN;             // that renderer; rcx -> block whose first dword is the player
     std::uint8_t* CARD_OUT_VFUNC;           // slot 0 of the CCardOutScene vftable
-    std::uint8_t* RENDERER_PATCH;           // call nop'd while the swap chain vtable is swapped
+    std::uint8_t* RENDERER_PRESENT_FN;      // native main/subscreen presentation, including boot
     std::uint8_t* APPLY_RANDOM_FN;          // applies the random modifier
     std::uint8_t* DARK_MODE_PATCH;          // short branch over the black frame tint assignment
     std::uint8_t* MEASURE_PATCH;            // branch over the measure bar draw

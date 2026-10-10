@@ -180,18 +180,7 @@ namespace iidxtra::gui
         ImGui::EndFrame();
         ImGui::Render();
 
-        IDirect3DSurface9* backbuffer = nullptr;
-        IDirect3DSurface9* render_target = nullptr;
-
-        if (SUCCEEDED(renderer_hook::device_ptr->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer)))
-        {
-            renderer_hook::device_ptr->GetRenderTarget(0, &render_target);
-            renderer_hook::device_ptr->SetRenderTarget(0, backbuffer);
-            backbuffer->Release();
-        }
-
         ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-        renderer_hook::device_ptr->SetRenderTarget(0, render_target);
     }
 
     auto draw_hint_text(std::string_view text, float offset_y, ImU32 color) -> void

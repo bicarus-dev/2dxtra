@@ -61,8 +61,8 @@ namespace iidxtra::mdata_load_hook
 			// Populate the chart set list before entering music select.
 			chart_set::load_sets();
 
-		    // Step 0: Initialize the renderer.
-            renderer_hook::install_hook();
+		    // Step 0: Enable the overlay; presentation binding is already installed.
+            renderer_hook::enable_overlay();
 
 			// Step 1: Populate the default chart set.
 			populate_default_set();

@@ -60,6 +60,7 @@ namespace iidxtra
 		score_set::init();
 
 		// Initialize hooks.
+		renderer_hook::install_hook();
 		chart_analyze_hook::install(db);
 		input_hook::install_hook();
 		network_hook::install_hook();
