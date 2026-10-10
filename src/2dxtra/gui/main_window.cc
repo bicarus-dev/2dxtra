@@ -482,6 +482,8 @@ namespace iidxtra::gui::main_window
                                        custom_audio::select_file);
                     custom_audio_combo("Music decide", custom_audio::channel::music_decide,
                                        custom_audio::decide_file);
+                    custom_audio_combo("Result BGM", custom_audio::channel::result,
+                                       custom_audio::result_file);
                     ImGui::EndDisabled();
                     auto const status = custom_audio::status();
                     if (!status.empty())

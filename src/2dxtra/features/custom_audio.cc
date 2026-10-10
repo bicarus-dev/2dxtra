@@ -19,6 +19,7 @@ namespace iidxtra::custom_audio
 {
     std::string select_file;
     std::string decide_file;
+    std::string result_file;
 
     // Read-only view of the game's cache. Ownership stays entirely with the native loader.
     struct cached_sound
@@ -60,8 +61,11 @@ namespace iidxtra::custom_audio
         "syssd_bgm_default_l2", "syssd_bgm_default_l3"
     };
 
-    static constexpr std::array<const char*, 2> audio_directories {
-        "song_select_bgm", "song_select_decide"
+    static constexpr std::array<const char*, 3> audio_directories {
+        "song_select_bgm", "song_select_decide", "result_bgm"
+    };
+    static constexpr std::array<const char*, 3> channel_labels {
+        "Music select: ", "Music decide: ", "Result BGM: "
     };
 
     static SafetyHookMid play_hook;
@@ -70,7 +74,7 @@ namespace iidxtra::custom_audio
     static std::atomic_bool custom_layers = false;
     static std::atomic<const char*> allocation_error = nullptr;
     static std::mutex mutex;
-    static std::array<channel_state, 2> channels;
+    static std::array<channel_state, 3> channels;
     static std::string scan_error;
     static constexpr char audio_mount[] = "/2dxtra_custom_audio";
     static std::filesystem::path audio_directory;
@@ -113,7 +117,7 @@ namespace iidxtra::custom_audio
 
     static auto fail(channel kind, const std::string& message) -> void
     {
-        const auto error = (kind == channel::music_select ? "Music select: " : "Music decide: ") + message;
+        const auto error = channel_labels[static_cast<std::size_t>(kind)] + message;
         if (state(kind).error != error)
             log::print("[Custom Audio] {}", error);
         state(kind).error = error;
@@ -122,7 +126,7 @@ namespace iidxtra::custom_audio
     auto update() -> void
     {
         const std::lock_guard lock(mutex);
-        const std::array<std::string_view, 2> selections {select_file, decide_file};
+        const std::array<std::string_view, 3> selections {select_file, decide_file, result_file};
         for (std::size_t i = 0; i < selections.size(); ++i)
         {
             auto& channel = channels[i];
@@ -137,6 +141,7 @@ namespace iidxtra::custom_audio
     {
         select_file.clear();
         decide_file.clear();
+        result_file.clear();
         update();
     }
 
@@ -244,6 +249,8 @@ namespace iidxtra::custom_audio
 
     static auto identify(std::string_view name) -> std::optional<channel>
     {
+        if (name.starts_with("syssd_result_") && name.ends_with("_gaya"))
+            return channel::result;
         if (name == "syssd_music_decide_se" ||
             name == "syssd_se_event1_decide" || name == "syssd_bgm_extrastage_phase01_decide")
             return channel::music_decide;
@@ -498,7 +505,7 @@ namespace iidxtra::custom_audio
                     ctx.rax = reinterpret_cast<std::uintptr_t>(slot(sample));
                 }
             }
-            if (kind == channel::music_decide)
+            if (kind != channel::music_select)
                 state(kind).error.clear();
             const auto path = kind == channel::music_select ? select_path : choose_path(kind);
             if (!prepare_file(sample, path, kind))
@@ -542,6 +549,7 @@ namespace iidxtra::custom_audio
         custom_layers.store(false);
         restore(channel::music_select);
         restore(channel::music_decide);
+        restore(channel::result);
         select_path.clear();
         if (mounted)
         {

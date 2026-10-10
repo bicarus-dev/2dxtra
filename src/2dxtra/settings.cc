@@ -67,6 +67,7 @@ namespace iidxtra::settings
         apply("audio.bgm_percent", audio_balance::bgm_percent, 0, audio_balance::max_percent);
         apply("audio.custom_select", custom_audio::select_file);
         apply("audio.custom_decide", custom_audio::decide_file);
+        apply("audio.custom_result", custom_audio::result_file);
         apply("gauge.tint_easy", gauge::tint_easy);
         apply("note_colors.p1.apply_to_beams", note_colors::apply_to_beams[0]);
         apply("note_colors.p2.apply_to_beams", note_colors::apply_to_beams[1]);
