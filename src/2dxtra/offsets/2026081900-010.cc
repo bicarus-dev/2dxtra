@@ -97,7 +97,11 @@ versions.push_back({
     .RANDOM_TICKET_DATA_FN    = base + 0x08855b0, // RandomLane::CRandomLaneTicketGameData getter
 
     .SUB_MOVIE_INIT_RETURN    = base + 0x08f8897, // return from mode getter before the demo-only movie layer creation
-    .SUB_MOVIE_DRAW_RETURN    = base + 0x08f7eec, // return from mode getter before the subscreen movie texture update
+    .BGA_INIT_FN              = base + 0x08f8440, // RCX=BGA context, RDX=music, R8B=effects enabled
+    .MOVIE_ENABLED_RETURN     = base + 0x090f3c8, // AL=layout video flag, passed to the song movie loader
+    .MOVIE_TEXTURE_FN         = base + 0x0a62140, // movie player texture descriptor
+    .MOVIE_TEXTURE_SCALE_FN   = base + 0x0a62300, // scales the descriptor for a frame child
+    .ELEMENT_TEXTURE_FN      = base + 0x0343230, // sets texture on named frame child
     .SUB_TITLE_CALL_RETURN    = base + 0x0905361, // return from mode getter before calling the subscreen title renderer
     .SUB_TITLE_DRAW_RETURN    = base + 0x0a4aff3, // return from mode getter at the title renderer's own demo check
     .GET_GAME_MODE_FN         = base + 0x09493c0, // read-only shared getter; preserve original instructions for other plugins

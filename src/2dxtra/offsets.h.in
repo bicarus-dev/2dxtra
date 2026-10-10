@@ -105,9 +105,13 @@ struct offsets
     std::uint8_t* RANDOM_SEQUENCE_DRAW_FN;  // identifies display-only ticket reads
     std::uint8_t* RANDOM_TICKET_DATA_FN;    // RandomLane::CRandomLaneTicketGameData getter
 
-    // Optional concentration movie support; return sites identify subscreen-only mode checks.
+    // Optional concentration movie support, including camera-only layouts.
     std::uint8_t* SUB_MOVIE_INIT_RETURN = nullptr; // creates the demo movie layer
-    std::uint8_t* SUB_MOVIE_DRAW_RETURN = nullptr; // updates its movie texture
+    std::uint8_t* BGA_INIT_FN = nullptr;            // initializes chart-specific BGA effects; R8B enables them
+    std::uint8_t* MOVIE_ENABLED_RETURN = nullptr;   // layout's video-enable result before the song movie loader
+    std::uint8_t* MOVIE_TEXTURE_FN = nullptr;       // current movie texture descriptor
+    std::uint8_t* MOVIE_TEXTURE_SCALE_FN = nullptr; // builds a scaled movie texture descriptor
+    std::uint8_t* ELEMENT_TEXTURE_FN = nullptr;     // assigns a texture to a named frame child
     std::uint8_t* SUB_TITLE_CALL_RETURN = nullptr; // enables the title renderer
     std::uint8_t* SUB_TITLE_DRAW_RETURN = nullptr; // demo check inside the title renderer
     std::uint8_t* GET_GAME_MODE_FN = nullptr;            // read-only shared getter; plugins decode its original instructions
