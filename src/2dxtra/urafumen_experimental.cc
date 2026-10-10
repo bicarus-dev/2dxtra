@@ -1,5 +1,6 @@
 #include <array>
 #include <algorithm>
+#include <limits>
 #include <optional>
 #include <string>
 #include <picosha2.h>
@@ -14,7 +15,16 @@ namespace
     using enum event_type;
     using enum column;
 
-    auto constexpr NO_VALUE = std::uint16_t { 0xFFFF };
+    auto constexpr NO_VALUE = std::numeric_limits<std::uint16_t>::max();
+    auto constexpr BYTE_COUNTER_MASK = std::numeric_limits<std::uint8_t>::max();
+    auto constexpr ORIGINAL_NOTE_MARKER = std::uint8_t { 0xAA };
+    auto constexpr BGM_CANDIDATE_MARKER = std::uint8_t { 0xCC };
+    auto constexpr UNKNOWN_END_OFFSET = std::numeric_limits<std::int32_t>::max();
+
+    auto constexpr EXTENDED_NOTE_P1 = static_cast<event_type>(100);
+    auto constexpr EXTENDED_NOTE_P2 = static_cast<event_type>(101);
+    auto constexpr SCRATCH_LANE = urafumen_experimental::SCRATCH_COL;
+    auto constexpr LINKED_SCRATCH_LANE = 107;
 
     auto constexpr GAP_DECAY_THRESHOLD = 350;
     auto constexpr GAP_STEP = 10;
@@ -24,6 +34,22 @@ namespace
     auto constexpr PLAYABLE_LANE_COUNT = 7;
     auto constexpr COLUMN_COUNT = 8;
     auto constexpr SAMPLE_SLOT_COUNT = 9;
+    auto constexpr DP_SIDE_COUNT = 2;
+    auto constexpr DP_KEY_COUNT = DP_SIDE_COUNT * PLAYABLE_LANE_COUNT;
+
+    auto constexpr KIRAKU_SPACING_MS = 250;
+    auto constexpr KICHIKU_SPACING_MS = 200;
+    auto constexpr KIRAKU_DENSITY_CAP = 50;
+    auto constexpr KICHIKU_DENSITY_CAP = 100;
+    auto constexpr KIRAKU_MEASURE_INTERVAL = 8;
+    auto constexpr KICHIKU_MEASURE_INTERVAL = 4;
+    auto constexpr KIRAKU_CHORD_CAP = 3;
+    auto constexpr KICHIKU_CHORD_CAP = 5;
+    auto constexpr KIRAKU_SCRATCH_MARGIN_MS = 600;
+    auto constexpr KICHIKU_SCRATCH_MARGIN_MS = 400;
+
+    auto constexpr HIGH_KEY_FIRST_PRIORITY = std::array { 6, 4, 2, 0, 5, 1, 3 };
+    auto constexpr LOW_KEY_FIRST_PRIORITY = std::array { 0, 2, 4, 6, 1, 5, 3 };
 
     struct generation_settings
     {
@@ -31,12 +57,14 @@ namespace
         int density_cap;
         int measure_interval;
         int chord_cap;
+        int scratch_margin;
 
         explicit generation_settings(const bool kichiku):
-            threshold { kichiku ? 200: 250 },
-            density_cap { kichiku ? 100: 50 },
-            measure_interval { kichiku ? 4: 8 },
-            chord_cap { kichiku ? 5: 3 } {}
+            threshold { kichiku ? KICHIKU_SPACING_MS: KIRAKU_SPACING_MS },
+            density_cap { kichiku ? KICHIKU_DENSITY_CAP: KIRAKU_DENSITY_CAP },
+            measure_interval { kichiku ? KICHIKU_MEASURE_INTERVAL: KIRAKU_MEASURE_INTERVAL },
+            chord_cap { kichiku ? KICHIKU_CHORD_CAP: KIRAKU_CHORD_CAP },
+            scratch_margin { kichiku ? KICHIKU_SCRATCH_MARGIN_MS: KIRAKU_SCRATCH_MARGIN_MS } {}
     };
 
     struct placement_candidate
@@ -46,7 +74,63 @@ namespace
         std::uint16_t freeze_length = 0;
         std::uint8_t lane_plus_one = 0;
         std::uint8_t marker = 0;
+        std::uint8_t scratch_sides = 0;
+
+        auto scratch_blocks(const int lane) const -> bool
+            { return (scratch_sides & (1u << (lane / PLAYABLE_LANE_COUNT))) != 0; }
     };
+
+    auto mark_dp_scratch_exclusions(std::vector<placement_candidate>& candidates,
+        std::span<const event> chart, const int margin) -> void
+    {
+        struct interval
+        {
+            std::int64_t begin;
+            std::int64_t end;
+        };
+        std::array<std::vector<interval>, DP_SIDE_COUNT> intervals;
+        for (const auto& note : chart)
+        {
+            if (note.type == END_OF_SONG)
+                break;
+            if ((note.type != NOTE_P1 && note.type != NOTE_P2 &&
+                 note.type != EXTENDED_NOTE_P1 && note.type != EXTENDED_NOTE_P2) ||
+                (note.parameter != SCRATCH_LANE && note.parameter != LINKED_SCRATCH_LANE))
+                continue;
+            const auto start = static_cast<std::int64_t>(note.offset);
+            const auto side = note.type == NOTE_P2 || note.type == EXTENDED_NOTE_P2 ? 1 : 0;
+            // CN/BSS/MSS duration is unsigned in the chart record.
+            intervals[side].push_back({start - margin,
+                start + static_cast<std::uint16_t>(note.value) + margin});
+        }
+
+        for (unsigned side = 0; side < intervals.size(); ++side)
+        {
+            auto& ranges = intervals[side];
+            std::sort(ranges.begin(), ranges.end(),
+                [](const interval& a, const interval& b) { return a.begin < b.begin; });
+            std::size_t merged = 0;
+            for (const auto range : ranges)
+            {
+                if (merged != 0 && range.begin <= ranges[merged - 1].end)
+                    ranges[merged - 1].end = std::max(ranges[merged - 1].end, range.end);
+                else
+                    ranges[merged++] = range;
+            }
+            ranges.resize(merged);
+
+            std::size_t next = 0;
+            for (auto& candidate : candidates)
+            {
+                if (candidate.lane_plus_one != 0)
+                    continue;
+                while (next < ranges.size() && ranges[next].end < candidate.offset)
+                    ++next;
+                if (next < ranges.size() && ranges[next].begin <= candidate.offset)
+                    candidate.scratch_sides |= static_cast<std::uint8_t>(1u << side);
+            }
+        }
+    }
 
     struct weighted_sample
     {
@@ -75,9 +159,9 @@ namespace
     }
 
     auto notes_per_hand_at_tick(const std::vector<placement_candidate>& candidates,
-        const int index) -> std::array<int, 2>
+        const int index) -> std::array<int, DP_SIDE_COUNT>
     {
-        auto counts = std::array<int, 2> {};
+        auto counts = std::array<int, DP_SIDE_COUNT> {};
         auto const offset = candidates[index].offset;
         auto begin = index;
         while (begin > 0 && candidates[begin - 1].offset == offset)
@@ -125,7 +209,7 @@ namespace
         { return static_cast<event_type>(player); }
 
     auto sample_type_for_player(const int player) -> event_type
-        { return static_cast<event_type>(static_cast<int>(note_type_for_player(player)) + 2); }
+        { return static_cast<event_type>(static_cast<int>(SAMPLE_P1) + player); }
 
     auto density_limiter(const int gap, std::uint8_t& counter,
         const generation_settings& settings) -> bool
@@ -134,14 +218,14 @@ namespace
         {
             auto const decay = (gap - GAP_DECAY_THRESHOLD) / GAP_STEP;
 
-            if (decay >= 0xFF || counter <= decay)
+            if (decay >= BYTE_COUNTER_MASK || counter <= decay)
                 counter = 0;
             else
                 counter = static_cast<std::uint8_t>(counter - decay);
         }
         else
         {
-            auto const current = (counter + (GAP_DECAY_THRESHOLD - gap) / GAP_STEP) & 0xFF;
+            auto const current = (counter + (GAP_DECAY_THRESHOLD - gap) / GAP_STEP) & BYTE_COUNTER_MASK;
 
             counter = static_cast<std::uint8_t>(current);
 
@@ -178,7 +262,7 @@ namespace
                         .sample_value = static_cast<std::uint16_t>(e.value),
                         .freeze_length = 0,
                         .lane_plus_one = 0,
-                        .marker = 0xCC
+                        .marker = BGM_CANDIDATE_MARKER
                     });
                 else
                     first_bgm_seen = true;
@@ -190,9 +274,9 @@ namespace
             }
             else if (e.type == note_type)
             {
-                auto const parameter = e.parameter == 107 ? 7: e.parameter;
+                auto const parameter = e.parameter == LINKED_SCRATCH_LANE ? SCRATCH_LANE: e.parameter;
 
-                if (parameter < 0 || parameter >= 8)
+                if (parameter < 0 || parameter >= COLUMN_COUNT)
                     continue;
 
                 auto const sample = last_sample_by_column[
@@ -206,7 +290,7 @@ namespace
                     sample_value,
                     static_cast<std::uint16_t>(e.value),
                     static_cast<std::uint8_t>(parameter + 1),
-                    0xAA });
+                    ORIGINAL_NOTE_MARKER });
             }
         }
 
@@ -232,10 +316,10 @@ namespace
     template<std::size_t KeyCount = PLAYABLE_LANE_COUNT>
     auto lane_priority_for_toggle(const int toggle) -> std::array<int, KeyCount>
     {
-        static_assert(KeyCount == PLAYABLE_LANE_COUNT || KeyCount == 2 * PLAYABLE_LANE_COUNT);
+        static_assert(KeyCount == PLAYABLE_LANE_COUNT || KeyCount == DP_KEY_COUNT);
         auto const priority = toggle == 0
-            ? std::array { 6, 4, 2, 0, 5, 1, 3 }
-            : std::array { 0, 2, 4, 6, 1, 5, 3 };
+            ? HIGH_KEY_FIRST_PRIORITY
+            : LOW_KEY_FIRST_PRIORITY;
 
         if constexpr (KeyCount == PLAYABLE_LANE_COUNT)
             return priority;
@@ -244,8 +328,8 @@ namespace
             auto combined = std::array<int, KeyCount> {};
             for (std::size_t index = 0; index < priority.size(); ++index)
             {
-                combined[2 * index] = priority[index] + (toggle == 0 ? 0 : PLAYABLE_LANE_COUNT);
-                combined[2 * index + 1] = priority[index] + (toggle == 0 ? PLAYABLE_LANE_COUNT : 0);
+                combined[DP_SIDE_COUNT * index] = priority[index] + (toggle == 0 ? 0 : PLAYABLE_LANE_COUNT);
+                combined[DP_SIDE_COUNT * index + 1] = priority[index] + (toggle == 0 ? PLAYABLE_LANE_COUNT : 0);
             }
             return combined;
         }
@@ -266,7 +350,7 @@ namespace
             return;
         }
 
-        if (working_set[index].occurrences == 0xFF)
+        if (working_set[index].occurrences == BYTE_COUNTER_MASK)
             return;
 
         working_set[index].occurrences += 1;
@@ -327,14 +411,15 @@ namespace
 
             auto const record_offset = rec.offset;
 
-            auto chord_counts = std::array<int, 2> {};
+            auto chord_counts = std::array<int, DP_SIDE_COUNT> {};
             if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
                 chord_counts = notes_per_hand_at_tick(candidates, index);
 
             for (auto lane = 0; lane < static_cast<int>(KeyCount); ++lane)
             {
                 if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
-                    if (chord_counts[lane / PLAYABLE_LANE_COUNT] >= settings.chord_cap)
+                    if (rec.scratch_blocks(lane) ||
+                        chord_counts[lane / PLAYABLE_LANE_COUNT] >= settings.chord_cap)
                         continue;
 
                 auto const free_from = frame.lane_free_from(lane);
@@ -377,7 +462,7 @@ namespace
     {
         for (auto lane = 0; lane < static_cast<int>(SlotCount) - 1; ++lane)
             if (lane_accepts[lane] != 0 && (lane + 1) != last_placed_lane_plus_one)
-                lane_accepts[lane] = (lane_accepts[lane] + 1) & 0xFF;
+                lane_accepts[lane] = (lane_accepts[lane] + 1) & BYTE_COUNTER_MASK;
     }
 
     template<std::size_t KeyCount>
@@ -429,11 +514,12 @@ namespace
             auto const record_offset = rec.offset;
             auto const free_from = frame.lane_free_from(lane);
 
-            auto chord_full = false;
+            auto blocked = false;
             if constexpr (KeyCount != PLAYABLE_LANE_COUNT)
-                chord_full = notes_per_hand_at_tick(candidates, index)[lane / PLAYABLE_LANE_COUNT] >= chord_cap;
+                blocked = rec.scratch_blocks(lane) ||
+                    notes_per_hand_at_tick(candidates, index)[lane / PLAYABLE_LANE_COUNT] >= chord_cap;
 
-            if (!chord_full && record_offset >= free_from)
+            if (!blocked && record_offset >= free_from)
             {
                 auto const required_gap =
                     frame.lane_sample(lane) == entry_value ? SAME_SAMPLE_GAP * (KeyCount == PLAYABLE_LANE_COUNT ? 1 : DP_SPACING_MULTIPLIER): threshold;
@@ -619,7 +705,7 @@ namespace
     {
         auto const settings = generation_settings { kichiku };
         auto candidates = std::vector<placement_candidate> {};
-        for (auto player = 0; player < 2; ++player)
+        for (auto player = 0; player < DP_SIDE_COUNT; ++player)
         {
             for (auto candidate : build_candidates(chart, player))
             {
@@ -635,10 +721,11 @@ namespace
                                                                const placement_candidate& right) {
             return left.offset < right.offset;
         });
-        run_generator<2 * PLAYABLE_LANE_COUNT>(candidates, chart, settings);
+        mark_dp_scratch_exclusions(candidates, chart, settings.scratch_margin);
+        run_generator<DP_KEY_COUNT>(candidates, chart, settings);
 
-        auto totals = std::array<int, 2> {};
-        auto player_candidates = std::array<std::vector<placement_candidate>, 2> {};
+        auto totals = std::array<int, DP_SIDE_COUNT> {};
+        auto player_candidates = std::array<std::vector<placement_candidate>, DP_SIDE_COUNT> {};
         for (auto candidate : candidates)
         {
             if (candidate.lane_plus_one == 0)
@@ -648,7 +735,7 @@ namespace
             }
             auto const lane = candidate.lane_plus_one - 1;
             auto const player = lane / PLAYABLE_LANE_COUNT;
-            if (candidate.marker == 0xCC)
+            if (candidate.marker == BGM_CANDIDATE_MARKER)
                 ++totals[player];
             candidate.lane_plus_one = static_cast<std::uint8_t>(lane % PLAYABLE_LANE_COUNT + 1);
             player_candidates[player].push_back(candidate);
@@ -668,12 +755,12 @@ namespace
                     continue;
                 first_bgm_seen = true;
             }
-            if (record.type == NOTE_COUNT && record.parameter >= 0 && record.parameter < 2)
+            if (record.type == NOTE_COUNT && record.parameter >= 0 && record.parameter < DP_SIDE_COUNT)
                 record.value = static_cast<std::int16_t>(record.value + totals[record.parameter]);
             out.push_back(record);
         }
 
-        for (auto player = 0; player < 2; ++player)
+        for (auto player = 0; player < DP_SIDE_COUNT; ++player)
             append_generated_events(out, player_candidates[player], player, player != 0);
 
         std::stable_sort(out.begin(), out.end(), [](const event& left, const event& right)
@@ -814,7 +901,7 @@ auto urafumen_experimental::convert(std::span<const event> chart, const int play
     auto out = std::vector<event> {};
     out.reserve(chart.size() + candidates.size() + 2);
     auto first_bgm_seen = false;
-    auto eos_offset = std::int32_t { 0x7FFFFFFF };
+    auto eos_offset = UNKNOWN_END_OFFSET;
 
     auto const n = static_cast<int>(chart.size());
 
@@ -830,7 +917,7 @@ auto urafumen_experimental::convert(std::span<const event> chart, const int play
 
         if (e.type == note_type || e.type == sample_type)
         {
-            if (e.parameter == 7 || e.parameter == 107)
+            if (e.parameter == SCRATCH_LANE || e.parameter == LINKED_SCRATCH_LANE)
                 out.push_back(e);
         }
         else if (e.type == BGM)
