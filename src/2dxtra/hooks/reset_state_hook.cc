@@ -9,6 +9,7 @@
 #include "../features/audio_balance.h"
 #include "../features/custom_audio.h"
 #include "../features/gauge.h"
+#include "../features/gauge_percent.h"
 #include "../features/note_colors.h"
 #include "../features/autoplay.h"
 #include "../features/cn_override.h"
@@ -42,6 +43,7 @@ namespace iidxtra::reset_state_hook
         audio_balance::reset();
         custom_audio::reset();
         gauge::reset();
+        gauge_percent::reset();
         note_colors::reset();
         autoplay::reset();
         cn_override::reset();

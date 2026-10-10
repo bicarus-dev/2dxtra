@@ -117,6 +117,9 @@ versions.push_back({
     .GAUGE_APPLY_DELTA        = base + 0x0975d40, // applies a signed raw gauge delta and handles failure (player, delta)
     .GAUGE_TICK_MS            = base + 0x08286a0, // returns the duration of one native playback tick in milliseconds
     .GAUGE_VALUES             = base + 0xb287350, // two 20-byte blocks: raw gauge value and four native delta magnitudes
+    .GAUGE_PERCENT_CALL       = base + 0x09049ce, // formatter call: RBX=side, R8=layer, R9=digit names
+    .ELEMENT_POSITION_FN      = base + 0x0341370, // named-child position (x, y)
+    .ELEMENT_SIZE_FN          = base + 0x0341a00, // named-child dimensions (width, height)
     .GAUGE_SPECIAL_STATE      = base + 0xb282758, // two native shared gauge-info entries (16 bytes each)
     .GAUGE_ARTWORK            = base + 0x0903d16, // artwork-selection mid-hook: ESI = player, EBP/R15 = renderer-local style
     .BM2D_RENDERER            = base + 0x034d000, // BM2D renderer getter; native HLS shader pointer at +98464

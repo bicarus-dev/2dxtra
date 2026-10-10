@@ -28,6 +28,7 @@
 #include "features/audio_balance.h"
 #include "features/custom_audio.h"
 #include "features/gauge.h"
+#include "features/gauge_percent.h"
 #include "features/note_colors.h"
 #include "features/key_release.h"
 #include "features/unrandomizer.h"
@@ -90,6 +91,7 @@ namespace iidxtra
         audio_balance::install_hook();
         custom_audio::install_hook();
         gauge::install_hook();
+        gauge_percent::install_hook();
         note_colors::install_hook();
         long_note::install_hook();
 
@@ -116,6 +118,7 @@ namespace iidxtra
         audio_balance::shutdown();
         custom_audio::shutdown();
         gauge::shutdown();
+        gauge_percent::shutdown();
         note_colors::shutdown();
         key_release::shutdown();
         long_note::shutdown();

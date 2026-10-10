@@ -14,6 +14,7 @@
 #include "features/cn_transformer.h"
 #include "features/fast_slow_display.h"
 #include "features/gauge.h"
+#include "features/gauge_percent.h"
 #include "features/note_colors.h"
 #include "features/hi_speed_reset.h"
 #include "features/keysound_switch.h"
@@ -69,6 +70,7 @@ namespace iidxtra::settings
         apply("audio.custom_decide", custom_audio::decide_file);
         apply("audio.custom_result", custom_audio::result_file);
         apply("gauge.tint_easy", gauge::tint_easy);
+        apply("gauge.decimal_percent", gauge_percent::enabled);
         apply("note_colors.p1.apply_to_beams", note_colors::apply_to_beams[0]);
         apply("note_colors.p2.apply_to_beams", note_colors::apply_to_beams[1]);
         for (std::size_t player = 0; player < note_colors::players.size(); ++player)
@@ -207,6 +209,7 @@ namespace iidxtra::settings
             audio_balance::update();
             custom_audio::update();
             gauge::update_tint();
+            gauge_percent::update();
             note_colors::update();
             live_timing::update();
             play_visuals::update_bga_darkness();
@@ -236,6 +239,7 @@ namespace iidxtra::settings
         audio_balance::update();
         custom_audio::update();
         gauge::update_tint();
+        gauge_percent::update();
         note_colors::update();
         play_visuals::update_dark_mode();
         play_visuals::update_bga_darkness();

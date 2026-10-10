@@ -83,6 +83,7 @@ set(SOURCE_FILES
     src/2dxtra/features/gauge.cc
     src/2dxtra/features/gauge_rules.cc
     src/2dxtra/features/gauge_render.cc
+    src/2dxtra/features/gauge_percent.cc
     src/2dxtra/features/color_filter.cc
     src/2dxtra/features/note_colors.cc
     src/2dxtra/features/autoplay.cc

@@ -127,6 +127,9 @@ struct offsets
     std::uint8_t* GAUGE_APPLY_DELTA = nullptr; // applies a signed raw gauge delta and handles failure (player, delta)
     std::uint8_t* GAUGE_TICK_MS = nullptr; // returns the duration of one native playback tick in milliseconds
     std::uint8_t* GAUGE_VALUES = nullptr; // two 20-byte blocks: raw gauge value and four native delta magnitudes
+    std::uint8_t* GAUGE_PERCENT_CALL;       // native life percentage digit-formatting call
+    std::uint8_t* ELEMENT_POSITION_FN;      // named frame child position (x, y)
+    std::uint8_t* ELEMENT_SIZE_FN;          // named frame child dimensions (width, height)
     std::uint8_t* GAUGE_SPECIAL_STATE = nullptr; // two native shared gauge-info entries (16 bytes each)
     std::uint8_t* GAUGE_ARTWORK = nullptr; // artwork-selection mid-hook: ESI = player, EBP/R15 = renderer-local style
     std::uint8_t* BM2D_RENDERER = nullptr; // BM2D renderer getter; native HLS shader pointer at +98464

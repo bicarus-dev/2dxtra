@@ -7,6 +7,7 @@
 #include "timing_histogram_window.h"
 #include "../features/live_timing.h"
 #include "../features/key_release.h"
+#include "../features/gauge_percent.h"
 #include "res/fonts.h"
 #include "../log.h"
 #include "../input.h"
@@ -62,6 +63,7 @@ namespace iidxtra::gui
         io.BackendPlatformName = "imgui_impl_2dxtra";
 
         io.Fonts->AddFontFromMemoryCompressedTTF(main_font_compressed_data, main_font_compressed_size, 13);
+        gauge_percent::init_font();
 
         {
             auto& style = ImGui::GetStyle();
@@ -154,6 +156,7 @@ namespace iidxtra::gui
 		timing_histogram_window::render();
         live_timing::render();
         key_release::render();
+        gauge_percent::render();
         chart_speed::render_progress();
 		log_window::render();
 

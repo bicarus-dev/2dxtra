@@ -18,6 +18,7 @@
 #include "../features/audio_balance.h"
 #include "../features/custom_audio.h"
 #include "../features/gauge.h"
+#include "../features/gauge_percent.h"
 #include "../features/autoplay.h"
 #include "../features/regular_speed.h"
 #include "../features/chart_speed.h"
@@ -389,6 +390,13 @@ namespace iidxtra::gui::main_window
                     ImGui::PopStyleVar();
                     ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Reduce saturation for ASSIST EASY and EASY gauges");
                 }
+
+                ImGui::TextUnformatted("Decimal gauge percentage");
+                ImGui::SameLine(285);
+                ImGui::BeginDisabled(!gauge_percent::available());
+                if (ImGui::Checkbox("##DecimalGaugePercent", &gauge_percent::enabled))
+                    gauge_percent::update();
+                ImGui::EndDisabled();
 
                 ImGui::BeginDisabled(!gauge::custom_available() || gauge::in_play());
                 for (std::size_t player = 0; player < gauge::players.size(); ++player)

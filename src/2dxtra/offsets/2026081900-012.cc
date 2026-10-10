@@ -99,6 +99,7 @@ versions.push_back({
     .PLAY_SCENE_DRAW_FN       = base + 0x0837f20, // updates both sides' key lights and turntable sprites
     .KEY_LIGHT_POSITION       = base + 0x0838bb9, // call rsi: button-light position, R14 = display, RCX = sprite, EDX/R8D = x/y, EBX = half-width
     .BGA_UPDATE_FN            = base + 0x082a890,
+    .PLAY_ELEMENT_FIND        = base + 0x03437a0, // named-child lookup used by frame and gauge updates
 
     .GAUGE_RESET              = base + 0x08a8270, // initializes both players' gauges for a new attempt
     .GAUGE_DELTA_SETUP        = base + 0x08a8da0, // calculates native delta magnitudes from P1/P2 note counts
@@ -107,6 +108,9 @@ versions.push_back({
     .GAUGE_APPLY_DELTA        = base + 0x08a8c20, // applies a signed raw gauge delta and handles failure (player, delta)
     .GAUGE_TICK_MS            = base + 0x075b470, // returns the duration of one native playback tick in milliseconds
     .GAUGE_VALUES             = base + 0xb187310, // two 20-byte blocks: raw gauge value and four native delta magnitudes
+    .GAUGE_PERCENT_CALL       = base + 0x083779e, // formatter call: RBX=side, R8=layer, R9=digit names
+    .ELEMENT_POSITION_FN      = base + 0x0341370, // named-child position (x, y)
+    .ELEMENT_SIZE_FN          = base + 0x0341a00, // named-child dimensions (width, height)
     .GAUGE_SPECIAL_STATE      = base + 0xb182718, // two native shared gauge-info entries (16 bytes each)
     .GAUGE_ARTWORK            = base + 0x0836ae6, // artwork-selection mid-hook: ESI = player, EBP/R15 = renderer-local style
     .BM2D_RENDERER            = base + 0x034d000, // BM2D renderer getter; native HLS shader pointer at +98464
