@@ -4,7 +4,8 @@
 
 namespace iidxtra::key_release
 {
-    // Per-key mean of the last 300 in-song releases under 200 ms, retained until profile logout.
+    // Separate SP/DP per-key means of the last 300 in-song releases under 200 ms,
+    // retained until profile logout.
     auto install_hook() -> void;
     auto shutdown() -> void;
     auto available() -> bool;

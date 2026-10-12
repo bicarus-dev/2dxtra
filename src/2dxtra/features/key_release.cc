@@ -57,7 +57,9 @@ namespace iidxtra::key_release
         bool in_song = false;
         bool sampled = false;
         std::uint32_t previous_held = 0;
-        std::array<key_state, 14> keys;
+        // Each style keeps its own rolling history; latch the style when a song starts.
+        std::array<std::array<key_state, 14>, 2> histories;
+        std::size_t song_style = 0;
         std::array<std::optional<key_position>, 14> positions;
 
         auto record_input_at(std::uint32_t held, clock::time_point now) -> void
@@ -74,6 +76,7 @@ namespace iidxtra::key_release
                 return;
             }
 
+            auto& keys = histories[song_style];
             for (unsigned index = 0; index < keys.size(); ++index)
             {
                 const auto bit = 1u << index;
@@ -157,14 +160,16 @@ namespace iidxtra::key_release
         enabled = value;
         sampled = false;
         positions = {};
-        for (auto& key : keys)
-            key.pressed.reset();
+        for (auto& history : histories)
+            for (auto& key : history)
+                key.pressed.reset();
     }
 
     auto reset() -> void
     {
         const std::lock_guard lock(mutex);
-        keys = {};
+        histories = {};
+        song_style = 0;
         positions = {};
         sampled = false;
         in_song = false;
@@ -174,11 +179,14 @@ namespace iidxtra::key_release
     {
         const std::lock_guard lock(mutex);
         in_song = value;
+        if (value && bm2dx::state)
+            song_style = bm2dx::state->play_style != 0 ? 1 : 0;
         sampled = false;
         positions = {};
         // Keep the session averages, but never join a press across songs or quick retries.
-        for (auto& key : keys)
-            key.pressed.reset();
+        for (auto& history : histories)
+            for (auto& key : history)
+                key.pressed.reset();
     }
 
     auto record_input(std::uint32_t held) -> void
@@ -202,6 +210,7 @@ namespace iidxtra::key_release
             positions = {};
             if (!enabled || !in_song)
                 return;
+            const auto& keys = histories[song_style];
             for (unsigned index = 0; index < keys.size(); ++index)
                 averages[index] = keys[index].average();
         }
