@@ -4,6 +4,7 @@
 #include "../features/timing_histogram.h"
 #include "../features/live_timing.h"
 #include "../features/gauge.h"
+#include "../features/song_end_shutter.h"
 #include "chart_load_hook.h"
 #include "stage_result_hook.h"
 
@@ -41,6 +42,7 @@ namespace iidxtra::stage_result_hook
 	{
         gauge::finish_play();
         live_timing::end_play();
+        song_end_shutter::end_play();
 		auto result = reinterpret_cast<std::uint8_t (*) (void*)>(original_stage_result_hook)(a1);
 
         timing_histogram::stop_record();

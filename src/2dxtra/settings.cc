@@ -19,6 +19,7 @@
 #include "features/hi_speed_reset.h"
 #include "features/keysound_switch.h"
 #include "features/play_visuals.h"
+#include "features/song_end_shutter.h"
 #include "features/regular_speed.h"
 #include "features/scratch_swap.h"
 #include "features/scratch_flip.h"
@@ -89,6 +90,7 @@ namespace iidxtra::settings
         apply("visuals.dark_mode", play_visuals::dark_mode);
         apply("visuals.io_key_display", play_visuals::io_key_display);
         apply("visuals.bga_darkness", play_visuals::bga_darkness, 0, 100);
+        apply("visuals.close_cover_after_last_note", song_end_shutter::enabled);
         apply("visuals.no_measure_lines", play_visuals::no_measure_lines);
         apply("visuals.no_bpm_gradient", play_visuals::no_bpm_gradient);
         apply("visuals.concentration_movie", play_visuals::concentration_movie);
@@ -248,6 +250,7 @@ namespace iidxtra::settings
         play_visuals::update_no_bpm_gradient();
         play_visuals::update_concentration_movie();
         play_visuals::update_subscreen_dim();
+        song_end_shutter::update();
         scratch_flip::update();
         fast_slow_display::update();
         timing_histogram::update();

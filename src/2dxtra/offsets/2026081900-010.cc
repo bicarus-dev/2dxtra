@@ -113,6 +113,8 @@ versions.push_back({
     .PLAY_LAYER_CREATE        = base + 0x0344080, // native CLayer creation used for play frames, gauge animations and key support
     .BGA_UPDATE_FN            = base + 0x08f7ac0,
     .PLAY_ELEMENT_FIND        = base + 0x03437a0, // named-child lookup used repeatedly by frame updates and key/turntable renderers
+    .COVER_POSITION_FN        = base + 0x090bc00,
+    .GET_SUDDEN_POSITION      = base + 0x0897a40,
 
     .GAUGE_RESET              = base + 0x0975390, // initializes both players' gauges for a new attempt
     .GAUGE_DELTA_SETUP        = base + 0x0975ec0, // calculates native delta magnitudes from P1/P2 note counts

@@ -24,6 +24,7 @@
 #include "../features/chart_speed.h"
 #include "../features/keysound_switch.h"
 #include "../features/play_visuals.h"
+#include "../features/song_end_shutter.h"
 #include "../features/scratch_flip.h"
 #include "../features/fast_slow_display.h"
 #include "../features/timing_histogram.h"
@@ -628,6 +629,21 @@ namespace iidxtra::gui::main_window
                         }
                         ImGui::PopStyleVar();
                         ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f}, "Hide the flashing blue bar above the keys");
+                    }
+
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, -5.0f));
+                        {
+                            ImGui::Text("Last Note Shutter");
+                            ImGui::SameLine(285);
+                            ImGui::BeginDisabled(!song_end_shutter::available() || song_end_shutter::in_play());
+                            if (ImGui::Checkbox("##SongEndShutter", &song_end_shutter::enabled))
+                                song_end_shutter::update();
+                            ImGui::EndDisabled();
+                        }
+                        ImGui::PopStyleVar();
+                        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1.f},
+                            "Lower SUDDEN+ after the last note");
                     }
 
                     {

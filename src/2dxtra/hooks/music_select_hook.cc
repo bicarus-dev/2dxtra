@@ -7,6 +7,7 @@
 #include "../features/live_timing.h"
 #include "../features/custom_audio.h"
 #include "../features/gauge.h"
+#include "../features/song_end_shutter.h"
 #include "music_select_hook.h"
 
 namespace iidxtra::music_select_hook
@@ -18,6 +19,7 @@ namespace iidxtra::music_select_hook
 	{
         gauge::enter_select();
         live_timing::end_play();
+        song_end_shutter::end_play();
 		// Refresh the chart sets from the database.
 		chart_set::load_sets();
 

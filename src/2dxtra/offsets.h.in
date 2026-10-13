@@ -123,6 +123,8 @@ struct offsets
     std::uint8_t* PLAY_LAYER_CREATE;      // creates play frame layers
     std::uint8_t* BGA_UPDATE_FN = nullptr; // updates song-movie display sprites, independent of cameras
     std::uint8_t* PLAY_ELEMENT_FIND;      // resolves named frame children
+    std::uint8_t* COVER_POSITION_FN = nullptr; // show and position the selected cover artwork
+    std::uint8_t* GET_SUDDEN_POSITION = nullptr; // cover amount in pixels; zero when SUDDEN+ is disabled
 
     std::uint8_t* GAUGE_RESET = nullptr; // initializes both players' gauges for a new attempt
     std::uint8_t* GAUGE_DELTA_SETUP = nullptr; // calculates native delta magnitudes from P1/P2 note counts

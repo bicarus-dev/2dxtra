@@ -100,6 +100,8 @@ versions.push_back({
     .KEY_LIGHT_POSITION       = base + 0x0838bb9, // call rsi: button-light position, R14 = display, RCX = sprite, EDX/R8D = x/y, EBX = half-width
     .BGA_UPDATE_FN            = base + 0x082a890,
     .PLAY_ELEMENT_FIND        = base + 0x03437a0, // named-child lookup used by frame and gauge updates
+    .COVER_POSITION_FN        = base + 0x083e9d0,
+    .GET_SUDDEN_POSITION      = base + 0x07ca810,
 
     .GAUGE_RESET              = base + 0x08a8270, // initializes both players' gauges for a new attempt
     .GAUGE_DELTA_SETUP        = base + 0x08a8da0, // calculates native delta magnitudes from P1/P2 note counts
@@ -139,6 +141,7 @@ versions.push_back({
     .PLAY_STATE               = base + 0xa6ed450, // per-play score/note counters and the pacemaker target
     .PLAY_SESSION             = base + 0xaaa99f0, // gameplay session block (pacemaker type, personal best, in-game flag)
     .DEAD_STATE               = base + 0xaaa95a0, // per-player alive flags from the failure handler's shared getter
+    .PLAY_COVER_POS           = base + 0x0f7f7e8,
     .PLAY_NOTE_POS            = base + 0x0f66550, // SP then DP; each side has seven key left edges and scratch
     .HI_SPEED_STATE           = base + 0xa9ad680, // singleton returned by 0x75c5b0
 

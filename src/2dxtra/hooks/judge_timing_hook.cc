@@ -2,11 +2,15 @@
 #include "../game.h"
 #include "../log.h"
 #include "../features/timing_modifier.h"
+#include "../features/song_end_shutter.h"
 #include "judge_timing_hook.h"
 
 namespace iidxtra::judge_timing_hook
 {
 	void* original_set_timing_fn = nullptr;
+    static bool installed = false;
+
+    auto available() -> bool { return installed; }
 
 	auto set_timing_hook_fn(bm2dx::timing_data_t* data, int player, int a3, int a4) -> void*
 	{
@@ -16,6 +20,7 @@ namespace iidxtra::judge_timing_hook
 
         // Modify the timing windows.
         timing_modifier::execute(data, player);
+        song_end_shutter::capture_timing(player, data->timing[player]);
 
         return result;
 	}
@@ -24,7 +29,8 @@ namespace iidxtra::judge_timing_hook
     {
         const auto timing_result = MH_CreateHook(bm2dx::addr->TIMING_HOOK_FN,
             reinterpret_cast<LPVOID>(set_timing_hook_fn), &original_set_timing_fn);
-        if (timing_result != MH_OK)
+        installed = timing_result == MH_OK;
+        if (!installed)
             log::init("Timing modifier hook unavailable ({})", static_cast<int>(timing_result));
     }
 }

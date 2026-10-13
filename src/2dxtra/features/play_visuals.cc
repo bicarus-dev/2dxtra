@@ -10,6 +10,7 @@
 #include "../util/code_patch.h"
 #include "play_visuals.h"
 #include "key_release.h"
+#include "song_end_shutter.h"
 
 namespace iidxtra::play_visuals
 {
@@ -337,6 +338,7 @@ namespace iidxtra::play_visuals
         draw_concentration_movie();
         key_release::begin_frame();
         const auto result = original_play_scene_draw_fn(context);
+        song_end_shutter::draw(static_cast<bm2dx::play_session_t*>(context));
         draw_io_key_display(static_cast<bm2dx::play_session_t*>(context));
         return result;
     }
@@ -354,6 +356,8 @@ namespace iidxtra::play_visuals
         }
         else
             log::print("[Visuals] I/O key display is unavailable for this game build");
+
+        song_end_shutter::initialize(draw_hook_available);
 
         if (bm2dx::addr->BGA_UPDATE_FN)
         {
@@ -413,6 +417,7 @@ namespace iidxtra::play_visuals
 
     auto reset() -> void
     {
+        song_end_shutter::reset();
         dark_mode = false;
         no_measure_lines = false;
         no_bpm_gradient = false;

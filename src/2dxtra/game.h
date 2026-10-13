@@ -123,7 +123,8 @@ namespace bm2dx
         std::int32_t lane2; //0x0014
         std::int32_t visible; //0x0018
         std::int32_t offset; //0x001C
-        std::uint8_t pad_0020[12]; //0x0020
+        std::int32_t tick; //0x0020 native playback tick of the head
+        std::uint8_t pad_0024[8]; //0x0024
         std::uint8_t pad_002C[8]; //0x002C native CN flags and tail render offset
         std::int32_t cn_duration; //0x0034 native playback ticks; zero for non-CNs/Legacy
         std::uint8_t pad_0038[16]; //0x0038
@@ -136,6 +137,7 @@ namespace bm2dx
         }
     }; static_assert(sizeof(play_note_t) == 0x50);
     static_assert(offsetof(play_note_t, cn_duration) == 0x34);
+    static_assert(offsetof(play_note_t, tick) == 0x20);
     static_assert(offsetof(play_note_t, hcn) == 0x48);
 
     // The judgment context starts with eight candidates per side; ticks are relative to the head or held tail.
@@ -160,7 +162,9 @@ namespace bm2dx
     struct play_field_t
     {
         play_notes_t notes[2]; //0x0000
-    }; static_assert(sizeof(play_field_t) == 0x271000);
+        std::int32_t note_counts[2]; //0x271000 includes non-playable chart events
+    }; static_assert(sizeof(play_field_t) == 0x271008);
+    static_assert(offsetof(play_field_t, note_counts) == 0x271000);
 
     struct text_props_t
     {

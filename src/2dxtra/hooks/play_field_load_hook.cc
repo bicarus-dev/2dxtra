@@ -4,6 +4,7 @@
 #include "../features/cn_override.h"
 #include "../features/timing_histogram.h"
 #include "../features/live_timing.h"
+#include "../features/song_end_shutter.h"
 #include "play_field_load_hook.h"
 
 namespace iidxtra::play_field_load_hook
@@ -29,6 +30,7 @@ namespace iidxtra::play_field_load_hook
         // Now let it be overridden.
         cn_override::update(0);
         cn_override::update(1);
+        song_end_shutter::begin_play(play_field);
 
         return result;
 	}
