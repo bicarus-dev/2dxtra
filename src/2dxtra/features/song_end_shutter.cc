@@ -21,6 +21,8 @@ namespace iidxtra::song_end_shutter
         constexpr auto judgment_pause = std::chrono::milliseconds {300};
         constexpr auto descent_duration = std::chrono::milliseconds {600};
         constexpr int cover_height = 723;
+        constexpr unsigned native_cover_layer = 108;
+        constexpr unsigned shutter_layer = 106; // In front of covers (108) and their readouts (107).
         constexpr std::size_t cover_controllers_offset = 0xFE0;
         constexpr std::size_t playback_tick_offset = 0x5C;
 
@@ -58,6 +60,19 @@ namespace iidxtra::song_end_shutter
         std::atomic_bool requested = false;
         bool ready = false;
         std::mutex mutex;
+        std::array<void*, 2> raised_artwork {};
+
+        auto set_artwork_layer(void* artwork, unsigned layer) -> void
+        {
+            // Native cover wrappers hold either a static sprite or an animated layer.
+            const auto* objects = static_cast<void* const*>(artwork);
+            for (unsigned i = 0; i < 2; ++i)
+                if (auto* object = objects[i])
+                {
+                    const auto vtable = *static_cast<void***>(object);
+                    reinterpret_cast<void(*)(void*, unsigned)>(vtable[30])(object, layer);
+                }
+        }
 
         auto report(const char* message) -> void
         {
@@ -137,6 +152,8 @@ namespace iidxtra::song_end_shutter
             }
             const auto* positions = reinterpret_cast<const int*>(a.PLAY_COVER_POS);
             const int y = static_cast<int>(std::lround(*side.start_y * remaining));
+            set_artwork_layer(control.artwork, shutter_layer);
+            raised_artwork[player] = control.artwork;
             reinterpret_cast<void(*)(void*, int, int)>(a.COVER_POSITION_FN)(
                 control.artwork, positions[2 * int(attempt.double_play) + player], y);
             if (control.numbers)
@@ -278,5 +295,20 @@ namespace iidxtra::song_end_shutter
     auto draw(bm2dx::play_session_t* session) -> void
     {
         draw_at(session, clock::now());
+    }
+
+    auto begin_frame(bm2dx::play_session_t* session) -> void
+    {
+        const std::lock_guard lock(mutex);
+        if (session)
+        {
+            const auto* controls = reinterpret_cast<const cover_control*>(
+                reinterpret_cast<const std::byte*>(session) + cover_controllers_offset);
+            for (unsigned player = 0; player < raised_artwork.size(); ++player)
+                // Never dereference a saved wrapper after native cleanup/replacement.
+                if (raised_artwork[player] && raised_artwork[player] == controls[player].artwork)
+                    set_artwork_layer(controls[player].artwork, native_cover_layer);
+        }
+        raised_artwork = {};
     }
 }

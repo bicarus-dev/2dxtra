@@ -337,6 +337,7 @@ namespace iidxtra::play_visuals
         // Apply layer state and title positioning before the native scene draws its UI.
         draw_concentration_movie();
         key_release::begin_frame();
+        song_end_shutter::begin_frame(static_cast<bm2dx::play_session_t*>(context));
         const auto result = original_play_scene_draw_fn(context);
         song_end_shutter::draw(static_cast<bm2dx::play_session_t*>(context));
         draw_io_key_display(static_cast<bm2dx::play_session_t*>(context));

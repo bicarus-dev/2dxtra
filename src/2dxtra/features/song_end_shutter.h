@@ -14,5 +14,6 @@ namespace iidxtra::song_end_shutter
     auto begin_play(const bm2dx::play_field_t* field) -> void;
     auto capture_timing(unsigned player, const bm2dx::player_timing_t& timing) -> void;
     auto end_play() -> void;
+    auto begin_frame(bm2dx::play_session_t* session) -> void;
     auto draw(bm2dx::play_session_t* session) -> void;
 }
