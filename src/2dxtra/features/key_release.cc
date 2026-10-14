@@ -62,6 +62,22 @@ namespace iidxtra::key_release
         std::size_t song_style = 0;
         std::array<std::optional<key_position>, 14> positions;
 
+        auto sequence_visible(unsigned player) -> bool
+        {
+            if (!bm2dx::play_session || !bm2dx::state)
+                return false;
+
+            // The play scene owns four panels: SP 1P/2P, then DP left/right.
+            constexpr std::size_t sequence_layers_offset = 0x50;
+            const auto* layers = reinterpret_cast<void* const*>(
+                reinterpret_cast<const std::byte*>(bm2dx::play_session) + sequence_layers_offset);
+            auto* layer = layers[(bm2dx::state->play_style != 0 ? 2 : 0) + player];
+            if (!layer)
+                return false;
+            const auto vtable = *static_cast<void***>(layer);
+            return reinterpret_cast<bool(*)(void*)>(vtable[43])(layer);
+        }
+
         auto record_input_at(std::uint32_t held, clock::time_point now) -> void
         {
             const std::lock_guard lock(mutex);
@@ -217,6 +233,8 @@ namespace iidxtra::key_release
         if (!bm2dx::state || bm2dx::state->game_type == 9)
             return;
 
+        // ImGui is composed above the game UI, so yield to visible native panels, including their fade-out.
+        const std::array obscured {sequence_visible(0), sequence_visible(1)};
         const auto screen = ImGui::GetIO().DisplaySize;
         if (screen.x <= 0 || screen.y <= 0)
             return;
@@ -227,7 +245,7 @@ namespace iidxtra::key_release
         auto* font = ImGui::GetFont();
         for (unsigned index = 0; index < layout.size(); ++index)
         {
-            if (!layout[index])
+            if (!layout[index] || obscured[index / 7])
                 continue;
 
             const auto& position = *layout[index];
