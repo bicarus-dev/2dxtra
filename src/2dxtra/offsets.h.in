@@ -32,6 +32,11 @@ struct offsets
     std::uint8_t* TEXT_INIT_FN;             // initialises a text property block
     std::uint8_t* TEXT_RENDER_FN;           // ASCII text renderer
     std::uint8_t* RESULT_ARTIST_FN;         // call that draws the artist line on the result screen
+    std::uint8_t* RESULT_BG_DRAW_FN = nullptr;
+    std::uint8_t* SCENE_GRAPHICS_CLEANUP_FN = nullptr;
+    std::uint8_t* TEXTURE_REGISTER_FN = nullptr;
+    std::uint8_t* TEXTURE_UNREGISTER_FN = nullptr;
+    std::uint8_t* GRAPHIC_BIND_TEXTURE_FN = nullptr;
     std::uint8_t* LOAD_CHART_FN_B;          // reads one .1 chart into the scratch buffer
     std::uint8_t* LOAD_CHART_FN_A;          // outer loader; knows which player is loading
     std::uint8_t* CHART_ANALYZE_FN;         // chart load + analyze pass run during boot
@@ -122,7 +127,7 @@ struct offsets
 
     std::uint8_t* PLAY_LAYER_CREATE;      // creates play frame layers
     std::uint8_t* BGA_UPDATE_FN = nullptr; // updates song-movie display sprites, independent of cameras
-    std::uint8_t* PLAY_ELEMENT_FIND;      // resolves named frame children
+    std::uint8_t* PLAY_ELEMENT_FIND;      // shared named-child lookup for play and result frames
     std::uint8_t* COVER_POSITION_FN = nullptr; // show and position the selected cover artwork
     std::uint8_t* GET_SUDDEN_POSITION = nullptr; // cover amount in pixels; zero when SUDDEN+ is disabled
 

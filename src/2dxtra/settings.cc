@@ -7,6 +7,7 @@
 #include "hooks/reset_state_hook.h"
 #include "features/audio_balance.h"
 #include "features/custom_audio.h"
+#include "features/result_backgrounds.h"
 #include "features/autoplay.h"
 #include "features/autoretry.h"
 #include "features/chart_speed.h"
@@ -70,6 +71,9 @@ namespace iidxtra::settings
         apply("audio.custom_select", custom_audio::select_file);
         apply("audio.custom_decide", custom_audio::decide_file);
         apply("audio.custom_result", custom_audio::result_file);
+        for (std::size_t i = 0; i < result_backgrounds::selections.size(); ++i)
+            apply("visuals.result_background." + std::string(result_backgrounds::folders[i]),
+                result_backgrounds::selections[i]);
         apply("gauge.tint_easy", gauge::tint_easy);
         apply("gauge.decimal_percent", gauge_percent::enabled);
         apply("note_colors.p1.apply_to_beams", note_colors::apply_to_beams[0]);
@@ -210,6 +214,7 @@ namespace iidxtra::settings
         {
             audio_balance::update();
             custom_audio::update();
+            result_backgrounds::update();
             gauge::update_tint();
             gauge_percent::update();
             note_colors::update();
@@ -240,6 +245,7 @@ namespace iidxtra::settings
         // Update runtime settings
         audio_balance::update();
         custom_audio::update();
+        result_backgrounds::update();
         gauge::update_tint();
         gauge_percent::update();
         note_colors::update();

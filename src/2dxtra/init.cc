@@ -27,6 +27,7 @@
 #include "features/long_note.h"
 #include "features/audio_balance.h"
 #include "features/custom_audio.h"
+#include "features/result_backgrounds.h"
 #include "features/gauge.h"
 #include "features/gauge_percent.h"
 #include "features/note_colors.h"
@@ -90,6 +91,7 @@ namespace iidxtra
         hi_speed_reset::install_hook();
         audio_balance::install_hook();
         custom_audio::install_hook();
+        result_backgrounds::install_hook();
         gauge::install_hook();
         gauge_percent::install_hook();
         note_colors::install_hook();
@@ -106,6 +108,11 @@ namespace iidxtra
 		{
 			if (GetAsyncKeyState(VK_LSHIFT) && GetAsyncKeyState(VK_F10))
 			{
+                if (!result_backgrounds::shutdown())
+                {
+                    Sleep(250);
+                    continue;
+                }
 				// Revert to default before unloading.
 				chart_set::revert();
 				break;

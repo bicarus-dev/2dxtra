@@ -9,6 +9,7 @@
 #include "../game.h"
 #include "../util/scoped_page_permissions.h"
 #include "scratch_flip.h"
+#include "result_backgrounds.h"
 
 namespace iidxtra::scratch_flip
 {
@@ -360,7 +361,7 @@ namespace iidxtra::scratch_flip
     }
 
     // Hook to swap out sprites when the game looks one up by name.
-    static auto element_find(void* frame, const char* name) -> void*
+    static auto find_element(void* frame, const char* name) -> void*
     {
         if (!prepare_layout())
             return original_element_find(frame, name);
@@ -378,6 +379,13 @@ namespace iidxtra::scratch_flip
         }
 
         return original_element_find(frame, name);
+    }
+
+    static auto element_find(void* frame, const char* name) -> void*
+    {
+        auto* clip = find_element(frame, name);
+        result_backgrounds::capture_clip(frame, name, clip);
+        return clip;
     }
 
     auto install_hook() -> void

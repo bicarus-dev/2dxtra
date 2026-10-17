@@ -8,6 +8,7 @@
 #include "../score_set.h"
 #include "../features/audio_balance.h"
 #include "../features/custom_audio.h"
+#include "../features/result_backgrounds.h"
 #include "../features/gauge.h"
 #include "../features/gauge_percent.h"
 #include "../features/note_colors.h"
@@ -43,6 +44,7 @@ namespace iidxtra::reset_state_hook
 
         audio_balance::reset();
         custom_audio::reset();
+        result_backgrounds::reset();
         gauge::reset();
         gauge_percent::reset();
         note_colors::reset();

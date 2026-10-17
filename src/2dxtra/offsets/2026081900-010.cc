@@ -23,6 +23,11 @@ versions.push_back({
     .TEXT_INIT_FN             = base + 0x0344880, // initialises the text property block (first callee)
     .TEXT_RENDER_FN           = base + 0x05ec370, // public wrapper around the ASCII text draw routine
     .RESULT_ARTIST_FN         = base + 0x091c3e9, // call that draws the result artist text
+    .RESULT_BG_DRAW_FN        = base + 0x091c120,
+    .SCENE_GRAPHICS_CLEANUP_FN = base + 0x0968a50,
+    .TEXTURE_REGISTER_FN      = base + 0x0355650,
+    .TEXTURE_UNREGISTER_FN    = base + 0x0355720,
+    .GRAPHIC_BIND_TEXTURE_FN  = base + 0x0340520,
     .LOAD_CHART_FN_B          = base + 0x0827c60, // reads one .1 chart into the scratch buffer
     .LOAD_CHART_FN_A          = base + 0x0827d80, // sole caller of LOAD_CHART_FN_B
     .CHART_ANALYZE_FN         = base + 0x0826af0, // boot-time chart load + analyze pass

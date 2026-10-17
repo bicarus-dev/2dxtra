@@ -51,6 +51,7 @@ set(SOURCE_FILES
     src/2dxtra/gui/loader.cc
     src/2dxtra/gui/log_window.cc
     src/2dxtra/gui/main_window.cc
+    src/2dxtra/gui/customize_tab.cc
     src/2dxtra/gui/unrandomizer_window.cc
     src/2dxtra/gui/cn_transformer_window.cc
     src/2dxtra/gui/timing_modifier_window.cc
@@ -80,6 +81,7 @@ set(SOURCE_FILES
     src/2dxtra/features/keysound_switch.cc
     src/2dxtra/features/audio_balance.cc
     src/2dxtra/features/custom_audio.cc
+    src/2dxtra/features/result_backgrounds.cc
     src/2dxtra/features/gauge.cc
     src/2dxtra/features/gauge_rules.cc
     src/2dxtra/features/gauge_render.cc
@@ -135,7 +137,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
 )
 
-target_link_libraries(${PROJECT_NAME} safetyhook::safetyhook minhook::minhook fmt::fmt imgui::imgui unofficial::sqlite3::sqlite3 zstd::libzstd dwmapi ${RUBBERBAND_LIBRARY} ${SAMPLERATE_LIBRARY})
+target_link_libraries(${PROJECT_NAME} safetyhook::safetyhook minhook::minhook fmt::fmt imgui::imgui unofficial::sqlite3::sqlite3 zstd::libzstd dwmapi windowscodecs ole32 ${RUBBERBAND_LIBRARY} ${SAMPLERATE_LIBRARY})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}/macros
